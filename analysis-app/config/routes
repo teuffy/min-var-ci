@@ -2,4 +2,4 @@
 /review/#Int        ReviewR   GET
 /help               HelpR     GET
 /import             ImportR   GET POST
-/datasets           DatasetsR GET
+/datasources        DatasourcesR GET

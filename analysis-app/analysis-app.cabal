@@ -19,7 +19,7 @@ library
                      DataAnalysis.Application.Handler.Review
                      DataAnalysis.Application.Handler.Help
                      DataAnalysis.Application.Handler.Import
-                     DataAnalysis.Application.Handler.Datasets
+                     DataAnalysis.Application.Handler.Datasources
                      DataAnalysis.Application.Foundation
                      DataAnalysis.Application.Types
                      DataAnalysis.Application.Dispatch

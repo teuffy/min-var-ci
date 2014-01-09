@@ -42,17 +42,17 @@ mkYesodData "App" $(parseRoutesFile "config/routes")
 instance ToMarkup (Route App) where
   toMarkup r =
     case r of
-      HomeR     -> "Home"
-      ReviewR i -> "Review"
-      HelpR     -> "Help"
-      ImportR   -> "Import"
-      DatasetsR -> "Datasets"
+      HomeR        -> "Home"
+      ReviewR _    -> "Review"
+      HelpR        -> "Help"
+      ImportR      -> "Import"
+      DatasourcesR -> "Datasources"
 
 instance Yesod App where
   defaultLayout widget = do
     pc <- widgetToPageContent $(widgetFileNoReload def "default-layout")
     currentRoute <- getCurrentRoute
-    appTitle <- fmap appTitle getYesod
+    reviewTitle <- fmap appTitle getYesod
     giveUrlRenderer $(hamletFile "templates/default-layout-wrapper.hamlet")
 
 instance RenderMessage App FormMessage where

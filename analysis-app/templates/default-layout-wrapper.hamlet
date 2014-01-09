@@ -19,7 +19,7 @@ $doctype 5
             <img src="//fpcomplete.com/static/img/ide-logo.png" title="FP Complete">
           <div class="nav-collapse collapse">
             <ul class="nav">
-              $forall route <- [HelpR,ImportR,DatasetsR]
+              $forall route <- [HelpR,ImportR,DatasourcesR]
                 $maybe current <- currentRoute
                   $if route == current
                     <li .active>
@@ -33,7 +33,7 @@ $doctype 5
     <div class="container">
       <ul class="breadcrumb">
         <li class="active">
-          #{appTitle}
+          #{reviewTitle}
       ^{pageBody pc}
     <script src="//code.jquery.com/jquery-1.10.2.min.js"></script>
     <script src="//netdna.bootstrapcdn.com/twitter-bootstrap/2.3.2/js/bootstrap.min.js"></script>

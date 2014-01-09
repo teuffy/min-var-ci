@@ -1,15 +1,16 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TemplateHaskell   #-}
+{-# OPTIONS -fno-warn-missing-signatures #-}
 
 module DataAnalysis.Application.Handler.Import where
 
-import Data.Default
-import Yesod
-import Yesod.Default.Util
-import Data.Conduit
-import Data.Conduit.Binary
+import           Data.Conduit
+import           Data.Conduit.Binary
+import           Data.Default
+import           Yesod
+import           Yesod.Default.Util
 
-import DataAnalysis.Application.Foundation
+import           DataAnalysis.Application.Foundation
 
 getImportR :: Handler Html
 getImportR = do
