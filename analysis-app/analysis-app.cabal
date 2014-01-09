@@ -45,6 +45,7 @@ executable analysis-app
                      analysis-app,
                      text,
                      data-default,
+                     persistent,
                      persistent-template,
                      time,
                      lens,

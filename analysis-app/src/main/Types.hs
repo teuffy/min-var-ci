@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE GADTs             #-}
@@ -22,6 +23,7 @@ import Data.Text           (Text)
 import Data.Time
 import Data.Typeable
 import Database.Persist.TH (mkPersist, persistLowerCase, share, sqlSettings)
+import Database.Persist.Sql
 
 -- | Parameters to the analysis app.
 data Parameters = Parameters
@@ -46,6 +48,7 @@ Listen
   deriving Show
 |]
 
+deriving instance Typeable SqlBackend
 deriving instance Typeable1 ListenGeneric
 
 -- Just because I don't know how to generate these automatically.
