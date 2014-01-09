@@ -12,4 +12,4 @@ import DataAnalysis.Application.Handler.Home
 import DataAnalysis.Application.Handler.Import
 import DataAnalysis.Application.Handler.Review
 
-mkYesodDispatch "App" resourcesApp
+mkYesodDispatch "GenericApp" resourcesGenericApp

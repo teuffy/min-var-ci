@@ -25,7 +25,7 @@ postImportR = do
   ((result, _), _) <- runFormPost uploadForm
   case result of
     FormSuccess fi -> do
-      app@App{appParser=parser} <- getYesod
+      GApp app@(App{appParser=parser}) <- getYesod
       fileBytes <- runResourceT $ fileSource fi $$ sinkLbs
       liftIO (parser fileBytes) >>= \x ->
         case x of

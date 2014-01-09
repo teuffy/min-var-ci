@@ -12,10 +12,11 @@ import DataAnalysis.Application.Foundation
 
 getReviewR :: Int -> Handler Html
 getReviewR ident = do
-    source <- getById ident
-    App{appPrinter=printer} <- getYesod
+    GApp app <- getYesod
+    source <- getById app ident
     currentRoute <- getCurrentRoute
     let title = toHtml (show (srcTimestamp source))
+        printer = appPrinter app
     defaultLayout $ do
         setTitle title
         let sample =

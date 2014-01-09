@@ -1,3 +1,6 @@
+{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE ImpredicativeTypes #-}
 {-# LANGUAGE CPP                   #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -8,38 +11,38 @@
 
 module DataAnalysis.Application.Foundation where
 
-import           DataAnalysis.Application.Types
-
 import           Control.Concurrent.STM
 import           Data.ByteString.Lazy           (ByteString)
 import           Data.Default
-import           Data.Dynamic
 import           Data.IntMap                    (IntMap)
 import qualified Data.IntMap                    as IntMap
 import           Data.Text                      (Text)
 import           Data.Time
+import           DataAnalysis.Application.Types
 import           Text.Blaze
 import           Text.Hamlet
 import           Yesod
 import           Yesod.Default.Util
 
-data App = App
-  { appParser   :: !(ByteString -> IO (Maybe [Dynamic]))
-  , appPrinter  :: !(Dynamic -> Text)
-  , appAnalyzer :: !(Dynamic -> [Dynamic] -> IO [DataPoint])
-  , appCounter  :: !(TVar Int)
-  , appStore    :: !(TVar (IntMap Source))
-  , appTitle    :: !Text
+data App source params = App
+  { appParser    :: !(ByteString -> IO (Maybe [source]))
+  , appPrinter   :: !(source -> Text)
+  , appAnalyzer  :: !(params -> [source] -> IO [DataPoint])
+  , appCounter   :: !(TVar Int)
+  , appStore     :: !(TVar (IntMap (Source source)))
+  , appTitle     :: !Text
   }
 
-data Source = Source
-  { srcParsed    :: ![Dynamic]
+data Source source = Source
+  { srcParsed    :: ![source]
   , srcTimestamp :: !UTCTime
   }
 
-mkYesodData "App" $(parseRoutesFile "config/routes")
+data GenericApp = forall source params. GApp (App source params)
 
-instance ToMarkup (Route App) where
+mkYesodData "GenericApp" $(parseRoutesFile "config/routes")
+
+instance ToMarkup (Route GenericApp) where
   toMarkup r =
     case r of
       HomeR        -> "Home"
@@ -48,32 +51,33 @@ instance ToMarkup (Route App) where
       ImportR      -> "Import"
       DatasourcesR -> "Data Sources"
 
-instance Yesod App where
+instance Yesod GenericApp where
   defaultLayout widget = do
     pc <- widgetToPageContent $(widgetFileNoReload def "default-layout")
     currentRoute <- getCurrentRoute
-    reviewTitle <- fmap appTitle getYesod
-    giveUrlRenderer $(hamletFile "templates/default-layout-wrapper.hamlet")
+    yesod <- getYesod
+    case yesod of
+      GApp (App{appTitle=reviewTitle}) ->
+        giveUrlRenderer $(hamletFile "templates/default-layout-wrapper.hamlet")
 
-instance RenderMessage App FormMessage where
+instance RenderMessage GenericApp FormMessage where
   renderMessage _ _ = defaultFormMessage
 
 -- | Next the next unique ID.
-getNextId :: App -> STM Int
+getNextId :: App source params -> STM Int
 getNextId (App{appCounter=tnextId}) = do
     nextId <- readTVar tnextId
     writeTVar tnextId $ nextId + 1
     return nextId
 
 -- | Get all sources.
-getList :: Handler [(Int, Source)]
-getList = do
-    App{appStore=tstore} <- getYesod
+getList :: App source params -> Handler [(Int, Source source)]
+getList App{appStore=tstore} = do
     store <- liftIO $ readTVarIO tstore
     return $ IntMap.toList store
 
 -- | Add a new source.
-addSource :: App -> [Dynamic] -> Handler Int
+addSource :: App source params -> [source] -> Handler Int
 addSource app@(App{appStore=tstore}) parsed = do
     now <- liftIO getCurrentTime
     liftIO . atomically $ do
@@ -84,9 +88,8 @@ addSource app@(App{appStore=tstore}) parsed = do
         return ident
 
 -- | Get a source by its id.
-getById :: Int -> Handler Source
-getById ident = do
-    App{appStore=tstore} <- getYesod
+getById :: App source params -> Int -> Handler (Source source)
+getById App{appStore=tstore} ident = do
     store <- liftIO $ readTVarIO tstore
     case IntMap.lookup ident store of
       Nothing -> notFound
