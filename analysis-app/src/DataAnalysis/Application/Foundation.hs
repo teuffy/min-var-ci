@@ -46,7 +46,7 @@ instance ToMarkup (Route App) where
       ReviewR _    -> "Review"
       HelpR        -> "Help"
       ImportR      -> "Import"
-      DatasourcesR -> "Datasources"
+      DatasourcesR -> "Data Sources"
 
 instance Yesod App where
   defaultLayout widget = do
