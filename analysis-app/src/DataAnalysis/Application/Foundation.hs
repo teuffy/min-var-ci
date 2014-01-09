@@ -37,11 +37,7 @@ data Source = Source
   , srcTimestamp :: !UTCTime
   }
 
-#ifdef FPHC
-mkYesodData "App" $(parseRoutesFile "analysis-app/config/routes")
-#else
 mkYesodData "App" $(parseRoutesFile "config/routes")
-#endif
 
 instance ToMarkup (Route App) where
   toMarkup r =
