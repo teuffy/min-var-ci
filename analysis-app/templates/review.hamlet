@@ -1,0 +1,22 @@
+<h1>#{title}
+
+<div .row>
+  <div .span6>
+    <div .well>
+      <h2>Parameters
+      TODO: Parameters here.
+  <div .span6>
+    <p>123,123 records processed in 0.23s.
+    <h2>Download
+    <form .form .inline-form>
+      <p>
+        Format:
+        <div .input-append>
+          <select>
+          <button .btn>Download
+
+<div .row>
+  <div .span12>
+    <div .well>
+      <h2>Sample
+      ^{sample}

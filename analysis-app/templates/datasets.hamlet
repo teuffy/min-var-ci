@@ -1,0 +1,9 @@
+<h1>Datasets
+$if null sources
+  <p>No datasets have been imported yet.
+$else
+  <p>Below is a list of datasets that you have imported for the current analysis:
+  <ul>
+    $forall (ident,source) <- sources
+      <li>
+        <a href=@{ReviewR ident}>#{show (srcTimestamp source)}

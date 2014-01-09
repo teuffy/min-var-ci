@@ -1,0 +1,8 @@
+#! /bin/bash
+
+mkdir log -p
+echo 'Killing ...'
+killall analysis-app
+sleep 0.2
+echo 'Starting ...'
+PORT=1066 dist/build/analysis-app/analysis-app & disown
