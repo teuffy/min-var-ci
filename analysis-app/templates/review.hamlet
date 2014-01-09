@@ -18,5 +18,11 @@
 <div .row>
   <div .span12>
     <div .well>
-      <h2>Sample
+      <h2>Analysis datapoints sample
+      ^{output}
+
+<div .row>
+  <div .span12>
+    <div .well>
+      <h2>Parsed sample
       ^{sample}

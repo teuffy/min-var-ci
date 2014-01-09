@@ -20,7 +20,7 @@ import Data.Monoid
 import Yesod
 
 -- | Run the analysis web app.
-runAnalysisApp :: AnalysisAppConfig params source -> IO ()
+runAnalysisApp :: Default params => AnalysisAppConfig params source -> IO ()
 runAnalysisApp config = do
   tstore <- atomically $ newTVar mempty
   tident <- atomically $ newTVar 0
@@ -32,3 +32,4 @@ runAnalysisApp config = do
               tident
               tstore
               (analysisTitle config)
+              def

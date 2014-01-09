@@ -35,7 +35,8 @@ library
                      conduit,
                      aeson,
                      ghc-prim,
-                     time
+                     time,
+                     lens
 
 executable analysis-app
   hs-source-dirs:    src/main
@@ -52,4 +53,5 @@ executable analysis-app
                      old-locale,
                      conduit,
                      csv-conduit,
-                     bytestring
+                     bytestring,
+                     lens

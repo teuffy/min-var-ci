@@ -5,6 +5,7 @@
 
 module Analysis where
 
+import Control.Lens
 import Data.Function
 import Data.List
 import Data.Ord
@@ -15,6 +16,7 @@ import Types
 analysis :: Parameters -> [Listen] -> IO [DataPoint]
 analysis Parameters{..} =
   return .
+  sortBy (flip (comparing (view pointDouble))) .
   map datapoint .
   groupBy (on (==) listenArtist) .
   sortBy (comparing listenArtist)

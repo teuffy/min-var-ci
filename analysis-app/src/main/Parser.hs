@@ -20,7 +20,7 @@ import           System.Locale
 -- | Parse the user data source from CSV.
 parseCSVSource :: ByteString -> IO (Maybe [Listen])
 parseCSVSource = fmap (Just . catMaybes . map parse) . readCSV def
-  where parse [id,ts,title,artist,_release] =
+  where parse [_id,ts,title,artist,_release] =
           Listen <$> parseTime defaultTimeLocale "%F %T" (T.unpack ts)
                  <*> pure title
                  <*> pure artist

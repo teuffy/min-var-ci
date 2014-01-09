@@ -17,13 +17,25 @@ getReviewR ident = do
     currentRoute <- getCurrentRoute
     let title = toHtml (show (srcTimestamp source))
         printer = appPrinter app
+    datapoints <-
+      liftIO (appAnalyzer
+                app
+                (appDefParams app)
+                (srcParsed source))
     defaultLayout $ do
         setTitle title
         let sample =
               [whamlet|
                 <ul>
-                  $forall datapoint <- take 20 (srcParsed source)
+                  $forall row <- take 20 (srcParsed source)
                     <li>
                       <code>
-                       #{toHtml (printer datapoint)}|]
+                       #{toHtml (printer row)}|]
+            output =
+              [whamlet|
+                <ul>
+                  $forall datapoint <- take 20 datapoints
+                    <li>
+                      <code>
+                       #{toHtml (show datapoint)}|]
         $(widgetFileNoReload def "review")

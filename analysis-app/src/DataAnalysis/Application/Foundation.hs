@@ -30,6 +30,7 @@ data App source params = App
   , appCounter   :: !(TVar Int)
   , appStore     :: !(TVar (IntMap (Source source)))
   , appTitle     :: !Text
+  , appDefParams :: params
   }
 
 data Source source = Source

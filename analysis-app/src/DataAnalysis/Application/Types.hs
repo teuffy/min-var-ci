@@ -8,9 +8,12 @@ module DataAnalysis.Application.Types
   (VisualizationType(..)
   ,ExportType(..)
   ,AnalysisAppConfig(..)
-  ,DataPoint(..))
+  ,DataPoint(..)
+  ,pointText
+  ,pointDouble)
   where
 
+import Control.Lens (Lens',lens)
 import Data.Aeson (ToJSON)
 import Data.ByteString.Lazy (ByteString)
 import Data.Default (Default(..))
@@ -45,6 +48,34 @@ data DataPoint
   | TripleDouble Text Double Double -- ^
   | Tuple Text Double   -- ^ Can be rendered onto a pie, line or bar chart, etc.
   deriving (Show,Generic)
+
+-- | Lens for the text of a data point.
+pointText :: Lens' DataPoint Text
+pointText = lens get set
+  where get d =
+          case d of
+            TripleText t _ _ -> t
+            TripleDouble t _ _ -> t
+            Tuple t _ -> t
+        set d v =
+          case d of
+            TripleText _ a b -> TripleText v a b
+            TripleDouble _ a b -> TripleDouble v a b
+            Tuple _ a -> Tuple v a
+
+-- | Lens for the double value of a data point.
+pointDouble :: Lens' DataPoint Double
+pointDouble = lens get set
+  where get d =
+          case d of
+            TripleText _ _ v -> v
+            TripleDouble _ _ v -> v
+            Tuple _ v -> v
+        set d v =
+          case d of
+            TripleText a b _ -> TripleText a b v
+            TripleDouble a b _ -> TripleDouble a b v
+            Tuple a _ -> Tuple a v
 
 -- | Data points can be sent to the client in JSON form, but the value
 --   in the triple should at least be enumerable.
