@@ -23,7 +23,9 @@ import Data.Text           (Text)
 import Data.Time
 import Data.Typeable
 import Database.Persist.TH (mkPersist, persistLowerCase, share, sqlSettings)
+#ifdef FPHC
 import Database.Persist.Sql
+#endif
 
 -- | Parameters to the analysis app.
 data Parameters = Parameters
@@ -48,7 +50,9 @@ Listen
   deriving Show
 |]
 
+#ifdef FPHC
 deriving instance Typeable SqlBackend
+#endif
 deriving instance Typeable1 ListenGeneric
 
 -- Just because I don't know how to generate these automatically.
