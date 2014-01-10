@@ -54,4 +54,5 @@ executable analysis-app
                      conduit,
                      csv-conduit,
                      bytestring,
-                     lens
+                     lens,
+                     yesod

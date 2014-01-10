@@ -4,7 +4,9 @@
   <div .span6>
     <div .well>
       <h2>Parameters
-      TODO: Parameters here.
+      <form method=post action=@{ReviewR ident} enctype=#{enctype}>
+        ^{widget}
+        <button>Update
   <div .span6>
     <p>123,123 records processed in 0.23s.
     <h2>Download

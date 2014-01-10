@@ -9,15 +9,13 @@ module DataAnalysis.Application.Prelude
   ,runAnalysisApp)
   where
 
-import DataAnalysis.Application.Types
-import DataAnalysis.Application.Dispatch ()
-import DataAnalysis.Application.Foundation
-
 import Control.Concurrent.STM
 import Data.Default
 import Data.Monoid
-
 import Yesod
+
+import DataAnalysis.Application.Types
+import DataAnalysis.Application.Dispatch ()
 
 -- | Run the analysis web app.
 runAnalysisApp :: Default params => AnalysisAppConfig params source -> IO ()
@@ -32,4 +30,4 @@ runAnalysisApp config = do
               tident
               tstore
               (analysisTitle config)
-              def
+              (analysisForm config)

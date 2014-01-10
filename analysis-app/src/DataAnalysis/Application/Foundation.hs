@@ -1,44 +1,25 @@
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE CPP                       #-}
 {-# LANGUAGE ExistentialQuantification #-}
-{-# LANGUAGE CPP                   #-}
-{-# LANGUAGE FlexibleInstances     #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE OverloadedStrings     #-}
-{-# LANGUAGE RankNTypes            #-}
-{-# LANGUAGE TemplateHaskell       #-}
-{-# LANGUAGE TypeFamilies          #-}
+{-# LANGUAGE FlexibleInstances         #-}
+{-# LANGUAGE MultiParamTypeClasses     #-}
+{-# LANGUAGE OverloadedStrings         #-}
+{-# LANGUAGE RankNTypes                #-}
+{-# LANGUAGE RecordWildCards           #-}
+{-# LANGUAGE TemplateHaskell           #-}
+{-# LANGUAGE TypeFamilies              #-}
+{-# OPTIONS -fno-warn-orphans #-}
 
 module DataAnalysis.Application.Foundation where
 
 import           Control.Concurrent.STM
-import           Data.ByteString.Lazy           (ByteString)
 import           Data.Default
-import           Data.IntMap                    (IntMap)
 import qualified Data.IntMap                    as IntMap
-import           Data.Text                      (Text)
 import           Data.Time
 import           DataAnalysis.Application.Types
 import           Text.Blaze
 import           Text.Hamlet
 import           Yesod
 import           Yesod.Default.Util
-
-data App source params = App
-  { appParser    :: !(ByteString -> IO (Maybe [source]))
-  , appPrinter   :: !(source -> Text)
-  , appAnalyzer  :: !(params -> [source] -> IO [DataPoint])
-  , appCounter   :: !(TVar Int)
-  , appStore     :: !(TVar (IntMap (Source source)))
-  , appTitle     :: !Text
-  , appDefParams :: params
-  }
-
-data Source source = Source
-  { srcParsed    :: ![source]
-  , srcTimestamp :: !UTCTime
-  }
-
-data GenericApp = forall source params. GApp (App source params)
 
 mkYesodData "GenericApp" $(parseRoutesFile "config/routes")
 

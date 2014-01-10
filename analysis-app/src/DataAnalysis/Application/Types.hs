@@ -1,3 +1,4 @@
+{-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -10,15 +11,21 @@ module DataAnalysis.Application.Types
   ,AnalysisAppConfig(..)
   ,DataPoint(..)
   ,pointText
-  ,pointDouble)
+  ,pointDouble
+  ,App(..)
+  ,Source(..)
+  ,GenericApp(..))
   where
 
+import Control.Concurrent.STM
 import Control.Lens (Lens',lens)
-import Data.Aeson (ToJSON)
 import Data.ByteString.Lazy (ByteString)
-import Data.Default (Default(..))
+import Data.Default
+import Data.IntMap (IntMap)
 import Data.Text (Text,pack)
+import Data.Time
 import GHC.Generics
+import Yesod
 
 -- | The type of visualization used to show some data.
 data VisualizationType
@@ -51,13 +58,13 @@ data DataPoint
 
 -- | Lens for the text of a data point.
 pointText :: Lens' DataPoint Text
-pointText = lens get set
-  where get d =
+pointText = lens get' set'
+  where get' d =
           case d of
             TripleText t _ _ -> t
             TripleDouble t _ _ -> t
             Tuple t _ -> t
-        set d v =
+        set' d v =
           case d of
             TripleText _ a b -> TripleText v a b
             TripleDouble _ a b -> TripleDouble v a b
@@ -65,13 +72,13 @@ pointText = lens get set
 
 -- | Lens for the double value of a data point.
 pointDouble :: Lens' DataPoint Double
-pointDouble = lens get set
-  where get d =
+pointDouble = lens get' set'
+  where get' d =
           case d of
             TripleText _ _ v -> v
             TripleDouble _ _ v -> v
             Tuple _ v -> v
-        set d v =
+        set' d v =
           case d of
             TripleText a b _ -> TripleText a b v
             TripleDouble a b _ -> TripleDouble a b v
@@ -89,6 +96,8 @@ data AnalysisAppConfig params source = AnalysisAppConfig
   , analysisDefDataExport :: ExportType
   , analysisParser :: ByteString -> IO (Maybe [source])
   , analysisPrint :: source -> Text
+  , analysisForm :: Html -> MForm (HandlerT GenericApp IO)
+                                  (FormResult params,WidgetT GenericApp IO ())
   }
 
 -- | Default configuration, doesn't produce any results.
@@ -100,4 +109,29 @@ instance (Show source,Default params) => Default (AnalysisAppConfig params sourc
     , analysisDefDataExport = def
     , analysisParser = const (return Nothing)
     , analysisPrint = \source -> pack (show source)
+    , analysisForm = const undefined
     }
+
+-- | Yesod app type.
+data App source params = App
+  { appParser     :: !(ByteString -> IO (Maybe [source]))
+  , appPrinter    :: !(source -> Text)
+  , appAnalyzer   :: !(params -> [source] -> IO [DataPoint])
+  , appCounter    :: !(TVar Int)
+  , appStore      :: !(TVar (IntMap (Source source)))
+  , appTitle      :: !Text
+  , appParamsForm :: !(Html -> MForm (HandlerT GenericApp IO)
+                                     (FormResult params,WidgetT GenericApp IO ()))
+  }
+
+-- | A generic app.
+data GenericApp =
+  forall source params.
+  Default params =>
+  GApp (App source params)
+
+-- | An imported data source.
+data Source source = Source
+  { srcParsed    :: ![source]
+  , srcTimestamp :: !UTCTime
+  }

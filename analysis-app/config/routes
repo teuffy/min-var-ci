@@ -1,5 +1,5 @@
 /                   HomeR     GET
-/review/#Int        ReviewR   GET
+/review/#Int        ReviewR   GET POST
 /help               HelpR     GET
 /import             ImportR   GET POST
 /datasources        DatasourcesR GET

@@ -9,6 +9,7 @@ import Yesod
 import Yesod.Default.Util
 
 import DataAnalysis.Application.Foundation
+import DataAnalysis.Application.Types
 
 getReviewR :: Int -> Handler Html
 getReviewR ident = do
@@ -17,10 +18,13 @@ getReviewR ident = do
     currentRoute <- getCurrentRoute
     let title = toHtml (show (srcTimestamp source))
         printer = appPrinter app
+    ((result, widget), enctype) <- runFormPost (appParamsForm app)
     datapoints <-
       liftIO (appAnalyzer
                 app
-                (appDefParams app)
+                (case result of
+                   FormSuccess p -> p
+                   _ -> def)
                 (srcParsed source))
     defaultLayout $ do
         setTitle title
@@ -39,3 +43,6 @@ getReviewR ident = do
                       <code>
                        #{toHtml (show datapoint)}|]
         $(widgetFileNoReload def "review")
+
+postReviewR :: Int -> Handler Html
+postReviewR = getReviewR

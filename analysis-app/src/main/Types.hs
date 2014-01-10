@@ -29,8 +29,8 @@ import Database.Persist.Sql
 
 -- | Parameters to the analysis app.
 data Parameters = Parameters
-  { paramStart :: Maybe Int
-  , paramEnd   :: Maybe Int
+  { paramStart :: Maybe Double
+  , paramEnd   :: Maybe Double
   } deriving (Show,Typeable)
 
 -- | Default values for the parameters.

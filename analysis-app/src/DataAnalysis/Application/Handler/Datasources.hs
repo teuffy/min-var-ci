@@ -8,6 +8,7 @@ import Yesod
 import Yesod.Default.Util
 
 import DataAnalysis.Application.Foundation
+import DataAnalysis.Application.Types
 
 getDatasourcesR :: Handler Html
 getDatasourcesR = do

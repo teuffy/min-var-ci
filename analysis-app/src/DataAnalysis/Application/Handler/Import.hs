@@ -4,13 +4,14 @@
 
 module DataAnalysis.Application.Handler.Import where
 
-import           Data.Conduit
-import           Data.Conduit.Binary
-import           Data.Default
-import           Yesod
-import           Yesod.Default.Util
+import Data.Conduit
+import Data.Conduit.Binary
+import Data.Default
+import Yesod
+import Yesod.Default.Util
 
-import           DataAnalysis.Application.Foundation
+import DataAnalysis.Application.Foundation
+import DataAnalysis.Application.Types
 
 getImportR :: Handler Html
 getImportR = do

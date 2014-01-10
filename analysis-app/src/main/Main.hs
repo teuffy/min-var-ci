@@ -7,6 +7,7 @@ module Main where
 import DataAnalysis.Application.Prelude
 
 import Analysis (analysis)
+import Params (params)
 import Parser (parseCSVSource)
 import Types (Parameters,Listen)
 
@@ -17,4 +18,5 @@ main = runAnalysisApp (def :: AnalysisAppConfig Parameters Listen)
   , analysisParser = parseCSVSource -- Temporary, proper source will
                                     -- be a persistent thing written
                                     -- by Manny.
+  , analysisForm = params
   }
