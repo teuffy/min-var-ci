@@ -1,29 +1,61 @@
-$(function(){
-    var ctx = $("#chart").get(0).getContext("2d");
-    var datapoints = $('#chart').data('data-points');
-    var datas = [], labelSet = Object.create(null);
-    for(var i = 0, len = datapoints.length; i < len; i++) {
-        var dp = datapoints[i];
-        switch(dp.tag) {
+function setupChartChoices(){
+    $('#chart').hide();
+    var list = $('#chart-choices');
+    function choice(title,onclick){
+        list.append($('<li></li>')
+                    .append($('<a href="#"></a>')
+                            .text(title)
+                            .click(onclick)));
+    }
+    choice('Bar',makeChart('Bar'));
+    choice('Line',makeChart('Line'));
+    choice('Pie',makeChart('Pie'));
+    choice('Radar',makeChart('Radar'));
+}
+
+function makeChart(type){
+    return function(){
+        $('#chart').show()
+        var ctx = $("#chart").get(0).getContext("2d");
+        var datapoints = $('#chart').data('data-points');
+        var datas = [], labelSet = Object.create(null);
+        for(var i = 0, len = datapoints.length; i < len; i++) {
+            var dp = datapoints[i];
+            switch(dp.tag) {
             case "Tuple": {
-                labelSet[dp.contents[0]] = true;
-                datas.push(dp.contents[1]);
+                if(type == "Pie") {
+                    datas.push({ value: dp.contents[1] });
+                } else {
+                    labelSet[dp.contents[0]] = true;
+                    datas.push(dp.contents[1]);
+                }
+            }
             }
         }
+        if (type !== "Pie") {
+            var datasets = [{
+	        fillColor : "rgba(220,220,220,0.5)",
+	        strokeColor : "rgba(220,220,220,1)",
+	        pointColor : "rgba(220,220,220,1)",
+	        pointStrokeColor : "#fff",
+	        data: datas
+            }],
+            labels = [];
+
+            for (var label in labelSet) labels.push(label);
+            var chart = new Chart(ctx)[type]({
+                labels: labels,
+                datasets: datasets
+            });
+        } else {
+            new Chart(ctx).Pie(datas);
+        }
+        return false;
     }
-    var datasets = [{
-	fillColor : "rgba(220,220,220,0.5)",
-	strokeColor : "rgba(220,220,220,1)",
-	pointColor : "rgba(220,220,220,1)",
-	pointStrokeColor : "#fff",
-	data: datas
-    }],
-    labels = [];
-    for (var label in labelSet) labels.push(label);
-    var chart = new Chart(ctx).Bar({
-        labels: labels,
-        datasets: datasets
-    });
+}
+
+$(function(){
+    setupChartChoices();
 });
 
 /*!

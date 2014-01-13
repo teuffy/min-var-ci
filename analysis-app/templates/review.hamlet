@@ -20,7 +20,14 @@
 <div .row>
   <div .span12>
      <div .well>
-       <canvas #chart data-data-points=#{datapointsJson} width="500" height="300"></canvas>
+       <h2>Chart
+       <div .btn-group>
+         <a .btn .dropdown-toggle data-toggle="dropdown" href="#">
+           Chart
+           <span .caret>
+         <ul .dropdown-menu #chart-choices>
+       <div>
+         <canvas #chart data-data-points=#{datapointsJson} width="500" height="300"></canvas>
 
 <div .row>
   <div .span12>
