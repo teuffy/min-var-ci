@@ -22,5 +22,5 @@ analysis Parameters{..} =
   map datapoint .
   groupBy (on (==) listenArtist) .
   sortBy (comparing listenArtist)
-  where datapoint (Listen _ artist _:xs) = Tuple artist (fromIntegral (1 + length xs))
+  where datapoint (Listen _ _ artist:xs) = Tuple artist (fromIntegral (1 + length xs))
         datapoint [] = Tuple "misc" 0
