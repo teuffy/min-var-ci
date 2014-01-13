@@ -17,6 +17,7 @@ library
   exposed-modules:   DataAnalysis.Application.Prelude
                      DataAnalysis.Application.Handler.Home
                      DataAnalysis.Application.Handler.Review
+                     DataAnalysis.Application.Handler.Export
                      DataAnalysis.Application.Handler.Help
                      DataAnalysis.Application.Handler.Import
                      DataAnalysis.Application.Handler.Datasources
@@ -36,7 +37,8 @@ library
                      aeson,
                      ghc-prim,
                      time,
-                     lens
+                     lens,
+                     old-locale
 
 executable analysis-app
   hs-source-dirs:    src/main

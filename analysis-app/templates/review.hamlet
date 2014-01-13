@@ -8,14 +8,17 @@
         ^{widget}
         <button>Update
   <div .span6>
-    <p>123,123 records processed in 0.23s.
-    <h2>Download
-    <form .form .inline-form>
-      <p>
-        Format:
-        <div .input-append>
-          <select>
-          <button .btn>Download
+    <p>#{length (srcParsed source)} records processed in #{toHtml (show generationTime)}.
+    <h2>Export
+    <div .btn-group>
+      <a .btn .dropdown-toggle data-toggle="dropdown" href="#">
+        Chart
+        <span .caret>
+      <ul .dropdown-menu>
+        <li>
+          <a href=@{ExportR ident "json"}>JSON
+        <li>
+          <a href=@{ExportR ident "csv"}>CSV
 
 <div .row>
   <div .span12>
