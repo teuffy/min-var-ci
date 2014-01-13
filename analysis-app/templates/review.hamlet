@@ -12,7 +12,7 @@
     <h2>Export
     <div .btn-group>
       <a .btn .dropdown-toggle data-toggle="dropdown" href="#">
-        Chart
+        Download
         <span .caret>
       <ul .dropdown-menu>
         <li>
