@@ -4,7 +4,9 @@
 
 module DataAnalysis.Application.Handler.Review where
 
+import Data.Aeson
 import Data.Default
+import Data.Text.Lazy.Encoding
 import Yesod
 import Yesod.Default.Util
 
@@ -42,7 +44,8 @@ getReviewR ident = do
                     <li>
                       <code>
                        #{toHtml (show datapoint)}|]
-        $(widgetFileNoReload def "review")
+            datapointsJson = toHtml (decodeUtf8 (encode datapoints))
+        $(widgetFileReload def "review")
 
 postReviewR :: Int -> Handler Html
 postReviewR = getReviewR

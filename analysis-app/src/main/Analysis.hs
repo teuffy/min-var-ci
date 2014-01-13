@@ -18,7 +18,7 @@ analysis Parameters{..} =
   return .
   filter (\d -> maybe True (view pointDouble d >=) paramStart &&
                 maybe True (view pointDouble d <=) paramEnd) .
-  sortBy (flip (comparing (view pointDouble))) .
+  -- sortBy (flip (comparing (view pointDouble))) .
   map datapoint .
   groupBy (on (==) listenArtist) .
   sortBy (comparing listenArtist)

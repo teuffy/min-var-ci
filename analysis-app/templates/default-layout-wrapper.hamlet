@@ -2,6 +2,7 @@ $doctype 5
 <html>
   <head>
     <title>#{pageTitle pc}
+    <script src="//code.jquery.com/jquery-1.10.2.min.js"></script>
     <link rel="stylesheet" type="text/css"
           href="//netdna.bootstrapcdn.com/twitter-bootstrap/2.3.2/css/bootstrap-combined.min.css">
     <link href="//fonts.googleapis.com/css?family=Actor"
@@ -35,5 +36,4 @@ $doctype 5
         <li class="active">
           #{reviewTitle}
       ^{pageBody pc}
-    <script src="//code.jquery.com/jquery-1.10.2.min.js"></script>
     <script src="//netdna.bootstrapcdn.com/twitter-bootstrap/2.3.2/js/bootstrap.min.js"></script>

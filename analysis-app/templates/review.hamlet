@@ -19,6 +19,11 @@
 
 <div .row>
   <div .span12>
+     <div .well>
+       <canvas #chart data-data-points=#{datapointsJson} width="500" height="300"></canvas>
+
+<div .row>
+  <div .span12>
     <div .well>
       <h2>Analysis datapoints sample
       ^{output}

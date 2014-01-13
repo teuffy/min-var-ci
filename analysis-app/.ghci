@@ -1,1 +1,1 @@
-:set -idist/build/autogen -i../dist/build/autogen -imain
+:set -idist/build/autogen -i../dist/build/autogen -isrc/main -isrc
