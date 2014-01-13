@@ -11,6 +11,7 @@ function setupChartChoices(){
     choice('Line',makeChart('Line'));
     choice('Pie',makeChart('Pie'));
     choice('Radar',makeChart('Radar'));
+    makeChart('Bar')();
 }
 
 function makeChart(type){
@@ -19,17 +20,13 @@ function makeChart(type){
         var ctx = $("#chart").get(0).getContext("2d");
         var datapoints = $('#chart').data('data-points');
         var datas = [], labelSet = Object.create(null);
-        for(var i = 0, len = datapoints.length; i < len; i++) {
+        for(var i = 0, len = Math.min(datapoints.length,50); i < len; i++) {
             var dp = datapoints[i];
-            switch(dp.tag) {
-            case "Tuple": {
-                if(type == "Pie") {
-                    datas.push({ value: dp.contents[1] });
-                } else {
-                    labelSet[dp.contents[0]] = true;
-                    datas.push(dp.contents[1]);
-                }
-            }
+            if(type == "Pie") {
+                datas.push({ value: dp[1] });
+            } else {
+                labelSet[dp[0]] = true;
+                datas.push(dp[1]);
             }
         }
         if (type !== "Pie") {

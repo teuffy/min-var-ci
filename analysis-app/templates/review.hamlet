@@ -21,7 +21,7 @@
           <a href=@{ExportR ident "csv"}>CSV
 
 <div .row>
-  <div .span12>
+  <div .span12 #chart-span>
      <div .well>
        <h2>Chart
        <div .btn-group>

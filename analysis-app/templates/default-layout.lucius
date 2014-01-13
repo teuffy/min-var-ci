@@ -53,3 +53,8 @@ body {
 .file-upload label {
   display: none;
 }
+#chart-span {
+  .btn-group {
+    margin-bottom: 1em;
+  }
+}

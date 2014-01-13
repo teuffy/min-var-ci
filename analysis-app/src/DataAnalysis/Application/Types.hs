@@ -1,4 +1,5 @@
 {-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -10,21 +11,21 @@ module DataAnalysis.Application.Types
   ,ExportType(..)
   ,AnalysisAppConfig(..)
   ,DataPoint(..)
-  ,pointText
-  ,pointDouble
+  ,dataLabel
+  ,dataValue
+  ,dataGroup
   ,App(..)
   ,Source(..)
   ,GenericApp(..))
   where
 
 import Control.Concurrent.STM
-import Control.Lens (Lens',lens)
 import Data.ByteString.Lazy (ByteString)
 import Data.Default
 import Data.IntMap (IntMap)
+import Control.Lens.TH
 import Data.Text (Text,pack)
 import Data.Time
-import GHC.Generics
 import Yesod
 
 -- | The type of visualization used to show some data.
@@ -50,43 +51,20 @@ instance Default ExportType where
   def = JsonData
 
 -- | A data point which can be rendered onto a chart of some kind.
-data DataPoint
-  = TripleText Text Text Double -- ^ Can be rendered onto a line or bar chart.
-  | TripleDouble Text Double Double -- ^
-  | Tuple Text Double   -- ^ Can be rendered onto a pie, line or bar chart, etc.
-  deriving (Show,Generic)
+data DataPoint = DP
+  { _dataLabel :: Text
+  , _dataValue :: Double
+  , _dataGroup :: Maybe Text
+  } deriving (Show)
 
--- | Lens for the text of a data point.
-pointText :: Lens' DataPoint Text
-pointText = lens get' set'
-  where get' d =
-          case d of
-            TripleText t _ _ -> t
-            TripleDouble t _ _ -> t
-            Tuple t _ -> t
-        set' d v =
-          case d of
-            TripleText _ a b -> TripleText v a b
-            TripleDouble _ a b -> TripleDouble v a b
-            Tuple _ a -> Tuple v a
+$(makeLenses ''DataPoint)
 
--- | Lens for the double value of a data point.
-pointDouble :: Lens' DataPoint Double
-pointDouble = lens get' set'
-  where get' d =
-          case d of
-            TripleText _ _ v -> v
-            TripleDouble _ _ v -> v
-            Tuple _ v -> v
-        set' d v =
-          case d of
-            TripleText a b _ -> TripleText a b v
-            TripleDouble a b _ -> TripleDouble a b v
-            Tuple a _ -> Tuple a v
-
--- | Data points can be sent to the client in JSON form, but the value
---   in the triple should at least be enumerable.
-instance ToJSON DataPoint
+instance ToJSON DataPoint where
+  toJSON (DP label value group') =
+    case group' of
+      Nothing -> toJSON [toJSON label
+                        ,toJSON value]
+      Just group'' -> toJSON [toJSON label,toJSON value,toJSON group'']
 
 -- | Configuration for the analysis app.
 data AnalysisAppConfig params source = AnalysisAppConfig

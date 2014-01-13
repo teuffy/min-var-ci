@@ -52,7 +52,7 @@ getReviewR ident = do
                     <li>
                       <code>
                        #{toHtml (show datapoint)}|]
-            datapointsJson = toHtml (decodeUtf8 (encode datapoints))
+            datapointsJson = toHtml (decodeUtf8 (encode (take 100 datapoints)))
             generationTime = diffUTCTime now start
         $(widgetFileReload def "review")
 
