@@ -1,4 +1,6 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module DataAnalysis.Application.Prelude
@@ -10,6 +12,9 @@ module DataAnalysis.Application.Prelude
   where
 
 import Control.Concurrent.STM
+import Data.ByteString (ByteString)
+import Data.CSV.Conduit
+import Data.Conduit (Conduit)
 import Data.Default
 import Data.Monoid
 import Yesod
@@ -19,7 +24,8 @@ import DataAnalysis.Application.Types
 import DataAnalysis.Application.Dispatch ()
 
 -- | Run the analysis web app.
-runAnalysisApp :: Default params => AnalysisAppConfig params source -> IO ()
+runAnalysisApp :: forall params source.
+                  (Default params,CSV ByteString source) => AnalysisAppConfig params source -> IO ()
 runAnalysisApp config = do
   tstore <- atomically $ newTVar mempty
   tident <- atomically $ newTVar 0
@@ -33,3 +39,6 @@ runAnalysisApp config = do
               tstore
               (analysisTitle config)
               (analysisForm config)
+              unCSV
+        unCSV :: Monad m => CSVSettings -> Conduit source m ByteString
+        unCSV = fromCSV

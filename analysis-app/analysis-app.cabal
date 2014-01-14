@@ -39,7 +39,9 @@ library
                      time,
                      lens,
                      old-locale,
-                     yesod-static
+                     yesod-static,
+                     csv-conduit,
+                     blaze-builder
 
 executable analysis-app
   hs-source-dirs:    src/main

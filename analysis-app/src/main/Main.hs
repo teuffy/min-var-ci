@@ -15,8 +15,8 @@ import Types (Parameters,Listen)
 main :: IO ()
 main = runAnalysisApp (def :: AnalysisAppConfig Parameters Listen)
   { analysisFunc = analysis
-  , analysisParser = parseCSVSource -- Temporary, proper source will
-                                    -- be a persistent thing written
-                                    -- by Manny.
+  , analysisParser = fmap Just . parseCSVSource def -- Temporary, proper source will
+                                                    -- be a persistent thing written
+                                                    -- by Manny.
   , analysisForm = params
   }

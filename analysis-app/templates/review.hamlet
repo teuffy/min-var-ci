@@ -16,8 +16,6 @@
         <span .caret>
       <ul .dropdown-menu>
         <li>
-          <a href=@{ExportR ident "json"}>JSON
-        <li>
           <a href=@{ExportR ident "csv"}>CSV
 
 <div .row>

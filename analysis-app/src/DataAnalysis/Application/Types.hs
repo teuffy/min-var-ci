@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveGeneric #-}
@@ -12,6 +13,9 @@ module DataAnalysis.Application.Types
 import Control.Concurrent.STM
 import Control.Lens.TH
 import Data.ByteString.Lazy (ByteString)
+import qualified Data.ByteString as S (ByteString)
+import Data.Conduit (Conduit)
+import Data.CSV.Conduit (CSV,CSVSettings)
 import Data.Default
 import Data.IntMap (IntMap)
 import Data.Text (Text,pack)
@@ -99,6 +103,7 @@ data App source params = App
   , appTitle      :: !Text
   , appParamsForm :: !(Html -> MForm (HandlerT GenericApp IO)
                                      (FormResult params,WidgetT GenericApp IO ()))
+  , appFromCSV    :: Monad m => CSVSettings -> Conduit source m S.ByteString
   }
 
 -- | An imported data source.
