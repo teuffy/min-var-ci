@@ -14,6 +14,6 @@ import DataAnalysis.Application.Types
 -- | Export the data source to various data formats.
 getExportR :: Int -> String -> Handler Html
 getExportR ident typ = do
-    GApp app <- getYesod
+    GApp app _ <- getYesod
     source <- getById app ident
     undefined

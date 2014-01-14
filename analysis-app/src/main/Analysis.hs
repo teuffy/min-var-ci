@@ -5,12 +5,13 @@
 
 module Analysis where
 
-import Control.Lens
-import Data.Function
-import Data.List
-import Data.Ord
-import DataAnalysis.Application.Types
-import Types
+import           Control.Lens
+import           Data.Function
+import           Data.List
+import           Data.Ord
+import qualified Data.Text as T
+import           DataAnalysis.Application.Types
+import           Types
 
 -- | Some analysis function.
 analysis :: Parameters -> [Listen] -> IO [DataPoint]
@@ -23,6 +24,6 @@ analysis Parameters{..} =
   groupBy (on (==) listenArtist) .
   sortBy (comparing listenArtist)
   where datapoint (Listen _ _ artist:xs) =
-          DP artist (fromIntegral (1 + length xs)) Nothing
+          DP (T.take 5 artist) (fromIntegral (1 + length xs)) Nothing
         datapoint [] =
           DP "misc" 0 Nothing

@@ -20,6 +20,7 @@ import           Text.Blaze
 import           Text.Hamlet
 import           Yesod
 import           Yesod.Default.Util
+import           Yesod.Static
 
 mkYesodData "GenericApp" $(parseRoutesFile "config/routes")
 
@@ -34,15 +35,21 @@ instance ToMarkup (Route GenericApp) where
 
 instance Yesod GenericApp where
   defaultLayout widget = do
-    pc <- widgetToPageContent $(widgetFileNoReload def "default-layout")
+    pc <- widgetToPageContent $ do
+      addStylesheet $ StaticR flot_jquery_flot_js
+      $(widgetFileNoReload def "default-layout")
     currentRoute <- getCurrentRoute
     yesod <- getYesod
     case yesod of
-      GApp (App{appTitle=reviewTitle}) ->
+      GApp (App{appTitle=reviewTitle}) static ->
         giveUrlRenderer $(hamletFile "templates/default-layout-wrapper.hamlet")
 
 instance RenderMessage GenericApp FormMessage where
   renderMessage _ _ = defaultFormMessage
+
+-- | Get the static files of the app.
+appStatic :: GenericApp -> Static
+appStatic (GApp _ static) = static
 
 -- | Next the next unique ID.
 getNextId :: App source params -> STM Int

@@ -1,3 +1,4 @@
+/static StaticR Static appStatic
 /                    HomeR     GET
 /review/#Int         ReviewR   GET POST
 /help                HelpR     GET

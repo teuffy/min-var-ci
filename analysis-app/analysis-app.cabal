@@ -38,7 +38,8 @@ library
                      ghc-prim,
                      time,
                      lens,
-                     old-locale
+                     old-locale,
+                     yesod-static
 
 executable analysis-app
   hs-source-dirs:    src/main

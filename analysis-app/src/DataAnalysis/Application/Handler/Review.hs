@@ -21,7 +21,7 @@ import DataAnalysis.Application.Types
 -- | Review the imported data, and the analysis upon that data.
 getReviewR :: Int -> Handler Html
 getReviewR ident = do
-    GApp app <- getYesod
+    GApp app _ <- getYesod
     source <- getById app ident
     currentRoute <- getCurrentRoute
     let title = toHtml (formatTime defaultTimeLocale "Import %T" (srcTimestamp source))
@@ -38,21 +38,7 @@ getReviewR ident = do
     now <- liftIO getCurrentTime
     defaultLayout $ do
         setTitle title
-        let sample =
-              [whamlet|
-                <ul>
-                  $forall row <- take 20 (srcParsed source)
-                    <li>
-                      <code>
-                       #{toHtml (printer row)}|]
-            output =
-              [whamlet|
-                <ul>
-                  $forall datapoint <- take 20 datapoints
-                    <li>
-                      <code>
-                       #{toHtml (show datapoint)}|]
-            datapointsJson = toHtml (decodeUtf8 (encode (take 100 datapoints)))
+        let datapointsJson = toHtml (decodeUtf8 (encode (take 100 datapoints)))
             generationTime = diffUTCTime now start
         $(widgetFileReload def "review")
 

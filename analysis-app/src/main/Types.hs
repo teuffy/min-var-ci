@@ -36,8 +36,8 @@ data Parameters = Parameters
 -- | Default values for the parameters.
 instance Default Parameters where
   def = Parameters
-    { paramStart = Nothing
-    , paramEnd   = Nothing
+    { paramStart = Just 50
+    , paramEnd   = Just 80
     }
 
 -- Using persistent's SQL TH for now. I'm not sure what the end result

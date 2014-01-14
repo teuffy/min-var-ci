@@ -7,26 +7,17 @@
 -- | Datatypes for analysis application API.
 
 module DataAnalysis.Application.Types
-  (VisualizationType(..)
-  ,ExportType(..)
-  ,AnalysisAppConfig(..)
-  ,DataPoint(..)
-  ,dataLabel
-  ,dataValue
-  ,dataGroup
-  ,App(..)
-  ,Source(..)
-  ,GenericApp(..))
-  where
+ where
 
 import Control.Concurrent.STM
+import Control.Lens.TH
 import Data.ByteString.Lazy (ByteString)
 import Data.Default
 import Data.IntMap (IntMap)
-import Control.Lens.TH
 import Data.Text (Text,pack)
 import Data.Time
 import Yesod
+import Yesod.Static
 
 -- | The type of visualization used to show some data.
 data VisualizationType
@@ -66,6 +57,8 @@ instance ToJSON DataPoint where
                         ,toJSON value]
       Just group'' -> toJSON [toJSON label,toJSON value,toJSON group'']
 
+staticFiles "static/"
+
 -- | Configuration for the analysis app.
 data AnalysisAppConfig params source = AnalysisAppConfig
   { analysisFunc :: params -> [source] -> IO [DataPoint]
@@ -90,6 +83,12 @@ instance (Show source,Default params) => Default (AnalysisAppConfig params sourc
     , analysisForm = const undefined
     }
 
+-- | A generic app.
+data GenericApp =
+  forall source params.
+  Default params =>
+  GApp (App source params) Static
+
 -- | Yesod app type.
 data App source params = App
   { appParser     :: !(ByteString -> IO (Maybe [source]))
@@ -101,12 +100,6 @@ data App source params = App
   , appParamsForm :: !(Html -> MForm (HandlerT GenericApp IO)
                                      (FormResult params,WidgetT GenericApp IO ()))
   }
-
--- | A generic app.
-data GenericApp =
-  forall source params.
-  Default params =>
-  GApp (App source params)
 
 -- | An imported data source.
 data Source source = Source
