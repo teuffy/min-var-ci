@@ -1,14 +1,22 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE OverloadedStrings #-}
 module Demo.Common where
 
-import Yesod
-import Demo.Helper.Class
-import Network.HTTP.Conduit (Manager, newManager, def)
+import Data.Default
 import Data.Proxy
+import Demo.Helper.Class
+import Yesod
+
+#ifdef FPHC
+import Network.HTTP.Conduit (Manager, newManager, def)
+defaultManagerSettings = def
+#else
+import Network.HTTP.Client (defaultManagerSettings, newManager, Manager)
+#endif
 
 data App = App Manager SomeAnalysis
 
@@ -39,5 +47,5 @@ getHomeR = do
 
 launch :: HasAnalysis params => Proxy params -> IO ()
 launch params = do
-    man <- newManager def
+    man <- newManager defaultManagerSettings
     warpEnv $ App man $ getSomeAnalysis params
