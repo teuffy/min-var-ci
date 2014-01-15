@@ -1,13 +1,5 @@
-{-# LANGUAGE ConstraintKinds           #-}
-{-# LANGUAGE DeriveDataTypeable        #-}
-{-# LANGUAGE ExistentialQuantification #-}
-{-# LANGUAGE FlexibleContexts          #-}
-{-# LANGUAGE MultiParamTypeClasses     #-}
 {-# LANGUAGE OverloadedStrings         #-}
-{-# LANGUAGE QuasiQuotes               #-}
-{-# LANGUAGE TemplateHaskell           #-}
 {-# LANGUAGE TypeFamilies              #-}
-{-# LANGUAGE UndecidableInstances      #-}
 module Demo.RSI where
 
 import           Control.Applicative
@@ -26,11 +18,10 @@ import           Demo.Helper.Class
 import           Yesod
 
 data RSI = RSI
-    { _rsiDay   :: !Day
-    , _rsiValue :: !Double
+    { rsiDay   :: !Day
+    , rsiValue :: !Double
     }
     deriving Show
-makeClassy ''RSI
 
 calculateRSI
     :: Double -- ^ alpha
@@ -45,8 +36,8 @@ calculateRSI alpha v =
 
 instance ToMapRow RSI where
     toMapRow rsi = Map.fromList
-        [ ("date", pack $ show $ rsi ^. rsiDay)
-        , ("rsi",  pack $ show $ rsi ^. rsiValue)
+        [ ("date", pack $ show $ rsiDay rsi)
+        , ("rsi",  pack $ show $ rsiValue rsi)
         ]
 
 data RsiParams = RsiParams
