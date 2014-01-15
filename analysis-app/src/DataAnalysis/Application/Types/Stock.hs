@@ -1,39 +1,24 @@
+{-# LANGUAGE ConstraintKinds           #-}
+{-# LANGUAGE DeriveDataTypeable        #-}
 {-# LANGUAGE ExistentialQuantification #-}
-{-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE ConstraintKinds #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE QuasiQuotes #-}
-{-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE OverloadedStrings  #-}
-{-# LANGUAGE TemplateHaskell    #-}
+{-# LANGUAGE FlexibleContexts          #-}
+{-# LANGUAGE MultiParamTypeClasses     #-}
+{-# LANGUAGE OverloadedStrings         #-}
+{-# LANGUAGE QuasiQuotes               #-}
+{-# LANGUAGE TemplateHaskell           #-}
+{-# LANGUAGE TypeFamilies              #-}
+{-# LANGUAGE UndecidableInstances      #-}
 module DataAnalysis.Application.Types.Stock where
 
-import Data.Conduit
-import Yesod
+import           Control.Applicative
 import           Control.Lens
-import qualified Data.Conduit.Binary   as CB
-import qualified Data.Conduit.List     as CL
-import qualified Data.Conduit.Text     as CT
-import           Data.CSV.Conduit
-import           Data.Time             (Day)
-import qualified Data.Conduit.Analysis as CA
-import qualified Data.Vector as V
-import Network.HTTP.Conduit hiding (Proxy)
-import qualified Data.ByteString as S
-import Blaze.ByteString.Builder (Builder, fromByteString)
-import Control.Exception (Exception)
-import Control.Applicative
-import Data.Text (Text, unpack, pack)
-import Data.Typeable (Typeable)
-import Safe (readMay)
-import qualified Data.Map as Map
-import Data.ByteString (ByteString)
-import Control.Monad.Trans.Resource (MonadResourceBase)
-import Demo.Helper.Class
-import Data.Proxy
-import Demo.Common
+import           Data.ByteString     (ByteString)
+import           Data.Conduit
+import qualified Data.Map            as Map
+import           Data.Text           (Text, unpack)
+import           Data.Time           (Day)
+import           Demo.Helper.Class
+import           Safe                (readMay)
 
 data Stock = Stock
     { _stockDay      :: !Day

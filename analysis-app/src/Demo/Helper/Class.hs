@@ -14,9 +14,7 @@ import Control.Monad.Trans.Resource
 import Network.HTTP.Conduit (Manager, http, parseUrl, responseBody)
 import Yesod
 import Data.Typeable (Typeable)
-import Control.Monad.IO.Class (MonadIO (..))
 import Data.Conduit
-import Control.Monad.Trans.Class
 import Data.ByteString (ByteString)
 import Blaze.ByteString.Builder (Builder)
 import Blaze.ByteString.Builder.Char.Utf8 (fromText)
@@ -87,7 +85,7 @@ data SomeAnalysis = forall params.
 getSomeAnalysis :: (HasForm params, HasAnalysis params)
                 => Proxy params
                 -> SomeAnalysis
-getSomeAnalysis params = SomeAnalysis
-    params
+getSomeAnalysis pparams = SomeAnalysis
+    pparams
     form
     (\params -> analysisInput params $= analysisBSConduit (analysisOf params))

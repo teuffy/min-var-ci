@@ -21,7 +21,6 @@ import qualified Data.IORef as I
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
 import qualified Data.HashMap.Strict as HM
-import Control.Concurrent.STM
 import qualified Data.Vector.Mutable as M
 import qualified Data.Vector as V
 
@@ -36,6 +35,9 @@ data ConduitManager a i m o = ConduitManager
     , cmCloseAll :: Conduit i m o
     }
 
+newCoroutineManager :: (Eq k, MonadIO m, Hashable k)
+                    => (i -> k -> Conduit i m o)
+                    -> IO (ConduitManager k i m o)
 newCoroutineManager inner = do
     imap <- I.newIORef HM.empty
     return ConduitManager
@@ -115,6 +117,7 @@ groupBy Coroutines lens inner = do
         let a = i L.^. lens
          in cmFeed manager i a
     cmCloseAll manager
+groupBy Threads _ _ = error "groupBy Threads not yet implemented"
 
 data Stats a = Stats
     { statsCount :: !Word64

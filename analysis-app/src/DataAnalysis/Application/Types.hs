@@ -15,7 +15,7 @@ import Control.Lens.TH
 import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString as S (ByteString)
 import Data.Conduit (Conduit)
-import Data.CSV.Conduit (CSV,CSVSettings)
+import Data.CSV.Conduit (CSVSettings)
 import Data.Default
 import Data.IntMap (IntMap)
 import Data.Text (Text,pack)

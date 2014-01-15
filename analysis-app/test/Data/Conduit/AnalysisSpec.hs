@@ -33,14 +33,14 @@ spec = describe "Data.Conduit.Analysis" $ do
                 , Person "US2" 20 "USA"
                 , Person "IS2" 30 "Israel"
                 ]
-            myAverage _ country = do
+            myAverage _ country' = do
                 stats <- CA.stats age
                 case CA.statsMean $ fmap fromIntegral stats of
                     Nothing -> return ()
-                    Just avg -> yield (country, avg)
+                    Just avg -> yield (country', avg)
             sink = CL.fold (\m (c, a) -> HM.insert c a m) HM.empty
             expected = HM.fromList
-                [ ("USA", 15)
+                [ ("USA", 15 :: Double)
                 , ("Israel", 20)
                 ]
         it "presorted" $ do

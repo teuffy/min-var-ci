@@ -8,7 +8,6 @@ module Demo.Common where
 import Yesod
 import Demo.Helper.Class
 import Network.HTTP.Conduit (Manager, newManager, def)
-import Data.Conduit
 import Data.Proxy
 
 data App = App Manager SomeAnalysis
@@ -33,7 +32,7 @@ getHomeR = do
         _ -> defaultLayout (do
             setTitle "RSI calculator"
             [whamlet|
-                <form method=get action=@{HomeR}>
+                <form method=get action=@{HomeR} enctype=#{enctype}>
                     ^{widget}
                     <input type=submit value=Calculate>
             |]) >>= sendResponse

@@ -1,51 +1,42 @@
+{-# LANGUAGE ConstraintKinds           #-}
+{-# LANGUAGE DeriveDataTypeable        #-}
 {-# LANGUAGE ExistentialQuantification #-}
-{-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE ConstraintKinds #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE QuasiQuotes #-}
-{-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE OverloadedStrings  #-}
-{-# LANGUAGE TemplateHaskell    #-}
+{-# LANGUAGE FlexibleContexts          #-}
+{-# LANGUAGE MultiParamTypeClasses     #-}
+{-# LANGUAGE OverloadedStrings         #-}
+{-# LANGUAGE QuasiQuotes               #-}
+{-# LANGUAGE TemplateHaskell           #-}
+{-# LANGUAGE TypeFamilies              #-}
+{-# LANGUAGE UndecidableInstances      #-}
 module Demo.RSI where
 
-import Data.Conduit
-import Yesod
+import           Control.Applicative
 import           Control.Lens
-import qualified Data.Conduit.Binary   as CB
-import qualified Data.Conduit.List     as CL
-import qualified Data.Conduit.Text     as CT
-import           Data.CSV.Conduit
-import           Data.Time             (Day)
-import qualified Data.Conduit.Analysis as CA
-import qualified Data.Vector as V
-import Network.HTTP.Conduit hiding (Proxy)
-import qualified Data.ByteString as S
-import Blaze.ByteString.Builder (Builder, fromByteString)
-import Control.Exception (Exception)
-import Control.Applicative
-import Data.Text (Text, unpack, pack)
-import Data.Typeable (Typeable)
-import Safe (readMay)
-import qualified Data.Map as Map
-import Data.ByteString (ByteString)
-import Control.Monad.Trans.Resource (MonadResourceBase)
-import Demo.Helper.Class
-import Data.Proxy
-import Demo.Common
-import DataAnalysis.Application.Types.Stock
+import           Data.Conduit
+import qualified Data.Conduit.Analysis                as CA
+import qualified Data.Conduit.List                    as CL
+import qualified Data.Map                             as Map
+import           Data.Proxy
+import           Data.Text                            (Text, pack)
+import           Data.Time                            (Day)
+import qualified Data.Vector                          as V
+import           DataAnalysis.Application.Types.Stock
+import           Demo.Common
+import           Demo.Helper.Class
+import           Yesod
 
 data RSI = RSI
-    { _rsiDay :: !Day
+    { _rsiDay   :: !Day
     , _rsiValue :: !Double
     }
     deriving Show
 makeClassy ''RSI
 
-rsi :: Double -- ^ alpha
-    -> V.Vector UpDown -> RSI
-rsi alpha v =
+calculateRSI
+    :: Double -- ^ alpha
+    -> V.Vector UpDown
+    -> RSI
+calculateRSI alpha v =
     RSI (V.head v ^. udDay) rsi'
   where
     rs = CA.exponentialMovingAverage udUp   alpha v
@@ -55,13 +46,13 @@ rsi alpha v =
 instance ToMapRow RSI where
     toMapRow rsi = Map.fromList
         [ ("date", pack $ show $ rsi ^. rsiDay)
-        , ("rsi", pack $ show $ rsi ^. rsiValue)
+        , ("rsi",  pack $ show $ rsi ^. rsiValue)
         ]
 
 data RsiParams = RsiParams
     { rpSymbol :: !Text -- ^ stock symbol
-    , rpSize :: !Int -- ^ RSI grouping size
-    , rpAlpha :: !Double -- ^ alpha for exponential moving average
+    , rpSize   :: !Int -- ^ RSI grouping size
+    , rpAlpha  :: !Double -- ^ alpha for exponential moving average
     }
 
 instance HasAnalysis RsiParams where
@@ -71,7 +62,7 @@ instance HasAnalysis RsiParams where
     analysisOf (RsiParams _ size alpha) =
             stocksToUpDown
         =$= CA.groupsOf size -- FIXME: need a better name, movingGroupsOf?
-        =$= CL.map (rsi alpha)
+        =$= CL.map (calculateRSI alpha)
 
     analysisInput (RsiParams symbol _ _) = rawStockSource symbol
 
