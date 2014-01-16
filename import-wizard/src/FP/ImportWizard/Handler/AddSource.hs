@@ -6,8 +6,9 @@
 
 module FP.ImportWizard.Handler.AddSource where
 
-import           Data.Conduit              (($$), ($$+-), (=$))
-import           Data.Conduit.Binary       (sinkFile, sourceFile)
+import Control.Monad.Trans.Resource (ResourceT, runResourceT)
+import           Data.Conduit              (($$), ($$+-), (=$), Sink)
+import           Data.Conduit.Binary       (sourceFile)
 import qualified Data.Conduit.List         as CL
 import           Data.CSV.Conduit          (Row, defCSVSettings, intoCSV)
 import qualified Data.Set                  as Set
@@ -75,86 +76,103 @@ iwPageHandler oldData IWFormatPage = do
 
 iwPageHandler oldData@IWData{iwdSource = oldIwsd} IWSourcePage = do
 
+    defaultCsv <- liftIO $ getCsvContent oldIwsd
     ((res, formWidget), enctype) <- runWizardForm $ renderTable $ SourceForm
         <$> aopt urlField "CSV data source URL:"{fsAttrs=wideFieldAttrs} (Just $ iwsdUrl oldIwsd)
-        <*> aopt textareaField "or enter CSV data:"{fsAttrs=largeTextareaAttrs} (Just $ Textarea <$> iwsdCsv oldIwsd)
+        <*> aopt textareaField "or enter CSV data:"{fsAttrs=largeTextareaAttrs} (Just $ Textarea <$> defaultCsv)
         <*> fileAFormOpt "or upload CSV file:"
         <*> areq checkBoxField "Has header row:" (Just $ iwsdHasHeaderRow oldIwsd)
         -- EKB TODO also specify separator and quote characters
 
     case res of
         WizardFormDiscard -> continueWizard oldData
-        WizardFormSave (FormSuccess sf) -> continueWizard $ saveForm sf
+        WizardFormSave (FormSuccess sf) -> continueWizard =<< liftIO (saveForm sf)
         WizardFormNext (FormSuccess sf@SourceForm{..}) -> do
-            -- EKB TODO if user uploaded a file then navigates back, next should work without having to re-upload
-            let savedData = saveForm sf
-                savedIwsd = iwdSource savedData
-            if (maybe1 (iwsdCsv savedIwsd) + maybe1 (iwsdUrl savedIwsd) + maybe1 sfFileInfo) /= 1
+            savedData@IWData{iwdSource = newIwsd} <- liftIO $ saveForm sf
+            if (maybe1 (iwsdCsvTempPath newIwsd) + maybe1 (iwsdUrl newIwsd) + maybe1 (iwsdUploadTempPath newIwsd)) /= 1
                 then do
                     setMessage "Exactly one data source must be specified."
                     renderIWPage formWidget enctype
                 else do
-                    newTempPath <- if
-                                isJust sfFileInfo
-                            ||  iwsdCsv savedIwsd /= iwsdCsv oldIwsd
-                            ||  iwsdUrl savedIwsd /= iwsdUrl oldIwsd
-                        then getFile sfFileInfo (iwsdCsv savedIwsd) (iwsdUrl savedIwsd)
-                        else return $ iwsdTempPath oldIwsd
-                    let newIwsd = savedIwsd{iwsdTempPath = newTempPath}
-                    newData <- if newIwsd /= oldIwsd
-                            then do
-                                types <- deriveCsvColumns newIwsd
-                                return savedData
-                                    {   iwdSource = newIwsd
-                                    ,   iwdTypes = IWTypesData types }
-                            else return oldData
-                    continueWizard newData
+                    if newIwsd /= oldIwsd
+                        then do
+                            maybeTypes <- liftIO $ deriveCsvColumns newIwsd
+                            case maybeTypes of
+                                Nothing -> continueWizard savedData
+                                Just types -> continueWizard savedData{iwdTypes = IWTypesData types}
+                        else continueWizard savedData
         _ -> renderIWPage formWidget enctype
 
   where
 
-    saveForm SourceForm{..} = oldData{iwdSource = oldIwsd
-        {   iwsdUrl          = stripMaybe sfUrl
-        ,   iwsdCsv          = stripMaybe $ unTextarea <$> sfCsv
-        ,   iwsdHasHeaderRow = sfHasHeaderRow } }
-
-    getFile :: Maybe FileInfo -> Maybe Text -> Maybe Text -> IWWizard (Maybe String)
-    getFile sfFileInfo maybeCsv maybeUrl = do
+    -- EKB TODO: generalize the URL/textarea/upload stuff into Wizard
+      
+    saveForm SourceForm{..} = do
         -- EKB TODO must clean up temp files that are left due to abandoning wizard
         -- EKB TODO also catch exceptions here and clean up temp file
-        tempPath <- getTempPath
-        case sfFileInfo of
-            Just fileInfo ->
+        let saveUrl = stripMaybe sfUrl
+        saveCsvTempPath <- case stripMaybe $ unTextarea <$> sfCsv of
+            Nothing -> return Nothing
+            Just csv -> do
+                oldCsv <- getCsvContent oldIwsd
+                if Just csv == oldCsv
+                    then return $ iwsdCsvTempPath oldIwsd
+                    else do
+                        tempPath <- getTempPath
+                        FS.writeFile (Path.decodeString tempPath) $ Text.encodeUtf8 csv
+                        return $ Just tempPath
+        saveUploadTempPath <- case sfFileInfo of
+            Nothing -> 
+                if isNothing saveUrl && isNothing saveCsvTempPath
+                    then return $ iwsdUploadTempPath oldIwsd
+                    else return Nothing
+            Just fileInfo -> do
+                tempPath <- getTempPath
                 -- EKB TODO adjust Yesod instance's maximumContentLength as appropriate and have good error message
-                liftIO $ fileMove fileInfo tempPath
-            Nothing -> case maybeCsv of
-                Just csv ->
-                    liftIO $ FS.writeFile (Path.decodeString tempPath) $ Text.encodeUtf8 csv
-                Nothing -> case maybeUrl of
-                    Just url -> do
-                        -- EKB TODO only download partial data
-                        -- EKB TODO friendly error handling
-                        req <- parseUrl $ Text.unpack url
-                        liftIO $ withManager $ \mgr -> do
-                            resp <- http req mgr
-                            responseBody resp $$+- sinkFile tempPath
-                    Nothing ->
-                        error "no source should not be able to happen here"
-        return $ Just tempPath
+                fileMove fileInfo tempPath
+                return $ Just tempPath
+        return oldData{iwdSource = oldIwsd
+            {   iwsdUrl             =   saveUrl
+            ,   iwsdCsvTempPath     =   saveCsvTempPath
+            ,   iwsdUploadTempPath  =   saveUploadTempPath
+            ,   iwsdHasHeaderRow    =   sfHasHeaderRow }}
 
-    deriveCsvColumns IWSourceData{..} =
-        sourceFile (fromMaybe "" iwsdTempPath) $$
+    getCsvContent :: IWSourceData -> IO (Maybe Text)
+    getCsvContent IWSourceData{..} =
+        case iwsdCsvTempPath of
+            Nothing -> return Nothing
+            Just csvTempPath ->
+                (Just . Text.decodeUtf8) <$> FS.readFile (Path.decodeString csvTempPath)
+
+    deriveCsvColumns iwsd =
+        intoSink iwsd $
             intoCSV defCSVSettings =$ do
-                columnNames <- CL.isolate (if iwsdHasHeaderRow then 1 else 0) =$
+                columnNames <- CL.isolate (if iwsdHasHeaderRow iwsd then 1 else 0) =$
                     CL.fold deriveHeaderRow (defaultColumnNames 1)
                 columnPossibleTypes <- CL.isolate analyzeRowCount =$
                     CL.fold deriveRow []
-                return $ flip map (zip columnNames columnPossibleTypes) $ \(n,(ts,o)) -> IWColumn
+                return $ Just $ flip map (zip columnNames columnPossibleTypes) $
+                        \(n,(ts,o)) -> IWColumn
                         -- EKB TODO make column name valid for identifier
                     {   iwcName     =   n
                     ,   iwcType     =   headDef IWTextType ts
                     ,   iwcOptional =   o
                     ,   iwcDefault  =   Nothing }
+
+    intoSink :: IWSourceData -> Sink ByteString (ResourceT IO) (Maybe a) -> IO (Maybe a)
+    intoSink IWSourceData{..} sink =
+        case iwsdUrl of
+            Just url -> do
+                req <- parseUrl $ Text.unpack url
+                withManager $ \mgr -> do
+                    resp <- http req mgr
+                    responseBody resp $$+- sink
+            Nothing -> case iwsdCsvTempPath of
+                Just csvTempFile -> runResourceT $ sourceFile csvTempFile $$ sink
+                Nothing -> case iwsdUploadTempPath of
+                    Just uploadTempFile -> runResourceT $ sourceFile uploadTempFile $$ sink
+                    Nothing -> return Nothing
+
 
     deriveHeaderRow :: [Text] -> Row Text -> [Text]
     deriveHeaderRow _ row = row
@@ -191,7 +209,7 @@ iwPageHandler oldData@IWData{iwdSource = oldIwsd} IWSourcePage = do
     analyzeRowCount =   1000
     maxEnumSize     =   50
 
-    getTempPath = liftIO $ do
+    getTempPath = do
         (path, h) <- flip openTempFile "sample.csv" =<< getTemporaryDirectory
         hClose h
         return path
@@ -344,11 +362,11 @@ data IWFormatData = IWFormatData
     } deriving (Read, Show, Eq)
 
 data IWSourceData =  IWSourceData
-    {   iwsdHasHeaderRow :: Bool
-    ,   iwsdUrl          :: Maybe Text
-    ,   iwsdCsv          :: Maybe Text
-        -- EKB TODO security risk to store full path here!
-    ,   iwsdTempPath     :: Maybe String
+    {   iwsdHasHeaderRow    :: Bool
+    ,   iwsdUrl             :: Maybe Text
+        -- EKB TODO security risk to store full paths here!
+    ,   iwsdCsvTempPath     :: Maybe String
+    ,   iwsdUploadTempPath  :: Maybe String
     } deriving (Read, Show, Eq)
 
 data IWTypesData = IWTypesData
@@ -373,9 +391,9 @@ data IWFormat
     |   IWStockDataFeedFormat
     deriving (Read, Show, Eq, Enum, Bounded)
 
--- Sort these in order of preference if a field could have more than one type
 defaultPossibleTypes :: [IWType]
 defaultPossibleTypes =
+    -- Sorted in order of preference if a field could have more than one type
     [   IWIntType
     ,   IWDoubleType
         -- EKB TODO add more date and time formats?
