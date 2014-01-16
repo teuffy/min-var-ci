@@ -6,5 +6,4 @@ environment: default
 cabal-file: project.cabal
 version: 1
 ghc-args: []
-excluded-modules:
-- analysis-app/Setup.hs
+excluded-modules: []
