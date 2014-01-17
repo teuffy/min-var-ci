@@ -13,6 +13,7 @@ import           Data.Conduit
 import           Data.Conduit.Binary (sourceFile)
 import qualified Data.Conduit.List as CL
 import           Data.Default
+import           Data.IORef
 import           Data.Text (Text)
 import           Data.Text.Lazy.Encoding
 import           Data.Time
@@ -37,7 +38,11 @@ getReviewR ident = do
           case result of
             FormSuccess p -> p
             _ -> def
-    datapoints <- sourceFile (srcPath source) $= analysisConduit params $$ CL.consume
+    countRef <- liftIO (newIORef 0)
+    start <- liftIO getCurrentTime
+    !datapoints <- sourceFile (srcPath source) $= analysisConduit countRef params $$ CL.consume
+    rowsProcessed <- liftIO (readIORef countRef)
+    generationTime <- liftIO (fmap (diffUTCTime start) getCurrentTime)
     now <- liftIO getCurrentTime
     defaultLayout $ do
         setTitle title
@@ -48,3 +53,9 @@ getReviewR ident = do
 -- | For the parameters form.
 postReviewR :: Text -> Handler Html
 postReviewR = getReviewR
+
+-- | Show a number that's counting something so 1234 is 1,234.
+showCount :: (Show n,Integral n) => n -> String
+showCount = reverse . foldr merge "" . zip ("000,00,00,00"::String) . reverse . show where
+  merge (f,c) rest | f == ',' = "," ++ [c] ++ rest
+                   | otherwise = [c] ++ rest

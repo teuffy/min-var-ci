@@ -23,6 +23,7 @@ import qualified Data.Conduit.List as CL
 import qualified Data.Conduit.Text as CT
 import           Data.Default
 import           Data.Double.Conversion.Text
+import           Data.IORef
 import qualified Data.Map                             as Map
 import           Data.Maybe
 import           Data.Proxy
@@ -120,7 +121,7 @@ data SomeAnalysis = forall params. HasForm params => SomeAnalysis
   , analysisForm    :: !(forall site. RenderMessage site FormMessage =>
                          AForm (HandlerT site IO) params)
   , analysisConduit :: !(forall site. (HasManager site) =>
-                         params -> Conduit ByteString (HandlerT site IO) DataPoint)
+                         IORef Int -> params -> Conduit ByteString (HandlerT site IO) DataPoint)
   }
 
 -- | An imported data source.
@@ -154,13 +155,20 @@ analysisBSConduitCSV inner =
 
 analysisBSConduitJSON
     :: (MonadResource m, MonadBaseControl IO m, FromMapRow input)
-    => Conduit input m DataPoint
+    => IORef Int
+    -> Conduit input m DataPoint
     -> Conduit ByteString m DataPoint
-analysisBSConduitJSON inner =
+analysisBSConduitJSON countRef inner =
         CT.decode CT.utf8
     =$= intoCSV defCSVSettings
+    =$= CL.iterM (const (liftIO (modifyIORef' countRef (+1))))
     =$= CL.mapM fromMapRow'
     =$= inner
+  where modifyIORef' :: IORef a -> (a -> a) -> IO ()
+        modifyIORef' ref f = do
+            x <- readIORef ref
+            let x' = f x
+            x' `seq` writeIORef ref x'
 
 fromMapRow' :: (FromMapRow a, MonadThrow m) => MapRow Text -> m a
 fromMapRow' = either monadThrow return . fromMapRow
@@ -171,4 +179,4 @@ getSomeAnalysis :: (HasForm params, HasAnalysis params)
 getSomeAnalysis pparams = SomeAnalysis
     pparams
     form
-    (\params -> analysisBSConduitJSON (analysisOf params))
+    (\countRef params -> analysisBSConduitJSON countRef (analysisOf params))
