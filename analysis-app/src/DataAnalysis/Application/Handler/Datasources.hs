@@ -12,8 +12,7 @@ import DataAnalysis.Application.Types
 
 getDatasourcesR :: Handler Html
 getDatasourcesR = do
-    GApp app _ <- getYesod
-    sources <- getList app
+    sources <- getList
     defaultLayout $ do
         setTitle "Datasources"
         $(widgetFileReload def "datasources")

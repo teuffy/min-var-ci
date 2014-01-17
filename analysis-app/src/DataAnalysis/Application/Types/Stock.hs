@@ -8,7 +8,10 @@
 {-# LANGUAGE TemplateHaskell           #-}
 {-# LANGUAGE TypeFamilies              #-}
 {-# LANGUAGE UndecidableInstances      #-}
+
 module DataAnalysis.Application.Types.Stock where
+
+import           DataAnalysis.Application.Types
 
 import           Control.Applicative
 import           Control.Lens
@@ -17,7 +20,6 @@ import           Data.Conduit
 import qualified Data.Map            as Map
 import           Data.Text           (Text, unpack)
 import           Data.Time           (Day)
-import           Demo.Helper.Class
 import           Safe                (readMay)
 
 data Stock = Stock

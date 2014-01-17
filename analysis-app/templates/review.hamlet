@@ -8,7 +8,7 @@
         ^{widget}
         <button>Update
   <div .span6>
-    <p>#{length (srcParsed source)} records processed in #{toHtml (show generationTime)}.
+    <!-- <p>#{length (srcParsed source)} records processed in #{toHtml (show generationTime)}. -->
     <h2>Export
     <div .btn-group>
       <a .btn .dropdown-toggle data-toggle="dropdown" href="#">
@@ -16,7 +16,7 @@
         <span .caret>
       <ul .dropdown-menu>
         <li>
-          <a href=@{ExportR ident "csv"}>CSV
+          <a href=@{ExportR ident}>CSV
 
 <div .row>
   <div .span12 #chart-span>
@@ -39,15 +39,15 @@
             <span .code>
               #{toHtml (show datapoint)}
 
-<div .row>
-  <div .span12>
-    <div .well>
-      <h2>Parsed sample
-      <ul>
-        $forall row <- take 20 (srcParsed source)
-          <li>
-            <span .code>
-              #{toHtml (printer row)}
+<!-- <div .row> -->
+<!--   <div .span12> -->
+<!--     <div .well> -->
+<!--       <h2>Parsed sample -->
+<!--       <ul> -->
+<!--         $forall row <- take 20 (srcParsed source) -->
+<!--           <li> -->
+<!--             <span .code> -->
+<!--               #{toHtml (printer row)} -->
 
 <script src=@{StaticR flot_jquery_js}>
 <script src=@{StaticR flot_jquery_flot_js}>

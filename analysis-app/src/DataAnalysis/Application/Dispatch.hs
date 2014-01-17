@@ -14,4 +14,4 @@ import DataAnalysis.Application.Handler.Review
 import DataAnalysis.Application.Handler.Export
 import DataAnalysis.Application.Types
 
-mkYesodDispatch "GenericApp" resourcesGenericApp
+mkYesodDispatch "App" resourcesApp
