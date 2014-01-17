@@ -13,15 +13,15 @@ import Data.Text (Text)
 import Yesod
 import Yesod.Static
 
+import DataAnalysis.Application.Types
+import DataAnalysis.Application.Dispatch ()
+
 #ifdef FPHC
 import Network.HTTP.Conduit (Manager, newManager, def)
 defaultManagerSettings = def
 #else
 import Network.HTTP.Client (defaultManagerSettings, newManager)
 #endif
-
-import DataAnalysis.Application.Types
-import DataAnalysis.Application.Dispatch ()
 
 -- | Run the analysis web app.
 runAnalysisApp :: HasAnalysis params => Text -> Proxy params -> IO ()
