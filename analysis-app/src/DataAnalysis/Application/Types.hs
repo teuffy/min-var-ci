@@ -13,11 +13,9 @@ module DataAnalysis.Application.Types where
 
 import           Blaze.ByteString.Builder
 import           Blaze.ByteString.Builder.Char.Utf8 (fromText)
-import           Control.Concurrent.STM
 import           Control.Exception (Exception)
 import           Control.Lens.TH
 import           Control.Monad.Trans.Resource
-
 import           Data.ByteString (ByteString)
 import           Data.CSV.Conduit
 import           Data.Conduit
@@ -25,7 +23,6 @@ import qualified Data.Conduit.List as CL
 import qualified Data.Conduit.Text as CT
 import           Data.Default
 import           Data.Double.Conversion.Text
-import           Data.IntMap (IntMap)
 import qualified Data.Map                             as Map
 import           Data.Maybe
 import           Data.Proxy
@@ -115,8 +112,6 @@ data App = App
   , appTitle    :: !Text
   , appAnalysis :: !SomeAnalysis
   , appStatic   :: !Static
-  , appCounter  :: !(TVar Int)
-  , appStore    :: !(TVar (IntMap DataSource))
   }
 
 -- | Some analysis.

@@ -8,8 +8,6 @@ module DataAnalysis.Application.Prelude
   (runAnalysisApp)
   where
 
-import Control.Concurrent.STM
-import Data.Monoid
 import Data.Proxy (Proxy)
 import Data.Text (Text)
 import Yesod
@@ -28,14 +26,10 @@ import DataAnalysis.Application.Dispatch ()
 -- | Run the analysis web app.
 runAnalysisApp :: HasAnalysis params => Text -> Proxy params -> IO ()
 runAnalysisApp title params = do
-  counter <- atomically (newTVar 0)
-  store <- atomically (newTVar mempty)
   s <- static "static"
   man <- newManager defaultManagerSettings
   warpEnv
     (App man
          title
          (getSomeAnalysis params)
-         s
-         counter
-         store)
+         s)
