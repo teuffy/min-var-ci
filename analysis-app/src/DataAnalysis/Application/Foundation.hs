@@ -1,3 +1,4 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE CPP                       #-}
 {-# LANGUAGE ExistentialQuantification #-}
@@ -12,6 +13,7 @@
 
 module DataAnalysis.Application.Foundation where
 
+import qualified Control.Exception as E
 import Control.Monad
 import Data.Default
 import Data.List
@@ -105,7 +107,8 @@ getList :: Handler [DataSource]
 getList =
   liftIO (do dir <- getAppDir
              list <- fmap (filter (not . all (=='.')))
-                          (getDirectoryContents dir)
+                          (E.catch (getDirectoryContents dir)
+                                   (\(_::E.IOException) -> return []))
              forM list
                   (\item ->
                      do let fp = dir ++ "/" ++ item
