@@ -31,7 +31,7 @@ function makeChart(type,data){
             var label = datum[0];
             var value = datum[1];
             var labeln = parseFloat(label);
-            if (!isNaN(labeln)) {
+            if (false) {
                 label = labeln;
             } else {
                 mode = "categories";
