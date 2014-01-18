@@ -1,3 +1,4 @@
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes #-}
@@ -7,34 +8,41 @@
 
 module DataAnalysis.Application.Handler.Review where
 
-import Data.Aeson
-import Data.Default
-import Data.Text.Lazy.Encoding
-import Data.Time
-import System.Locale
-import Yesod
-import Yesod.Default.Util
+import           Data.Aeson
+import           Data.Conduit
+import           Data.Conduit.Binary (sourceFile)
+import qualified Data.Conduit.List as CL
+import           Data.Default
+import           Data.IORef
+import           Data.Text (Text)
+import           Data.Text.Lazy.Encoding
+import           Data.Time
+import           DataAnalysis.Application.Foundation
+import           System.Locale
+import           Yesod
+import           Yesod.Default.Util
 
-import DataAnalysis.Application.Foundation
-import DataAnalysis.Application.Types
+import           DataAnalysis.Application.Types
 
 -- | Review the imported data, and the analysis upon that data.
-getReviewR :: Int -> Handler Html
+getReviewR :: Text -> Handler Html
 getReviewR ident = do
-    GApp app _ <- getYesod
-    source <- getById app ident
+    app <- getYesod
+    source <- getById ident
     currentRoute <- getCurrentRoute
     let title = toHtml (formatTime defaultTimeLocale "Import %T" (srcTimestamp source))
-        printer = appPrinter app
-    ((result, widget), enctype) <- runFormPost (appParamsForm app)
+    SomeAnalysis{..} <- return (appAnalysis app)
+    ((result, widget), enctype) <- runFormPost (renderDivs analysisForm)
     start <- liftIO getCurrentTime
-    !datapoints <-
-      liftIO (appAnalyzer
-                app
-                (case result of
-                   FormSuccess p -> p
-                   _ -> def)
-                (srcParsed source))
+    let params =
+          case result of
+            FormSuccess p -> p
+            _ -> def
+    countRef <- liftIO (newIORef 0)
+    start <- liftIO getCurrentTime
+    !datapoints <- sourceFile (srcPath source) $= analysisConduit countRef params $$ CL.consume
+    rowsProcessed <- liftIO (readIORef countRef)
+    generationTime <- liftIO (fmap (diffUTCTime start) getCurrentTime)
     now <- liftIO getCurrentTime
     defaultLayout $ do
         setTitle title
@@ -43,5 +51,11 @@ getReviewR ident = do
         $(widgetFileReload def "review")
 
 -- | For the parameters form.
-postReviewR :: Int -> Handler Html
+postReviewR :: Text -> Handler Html
 postReviewR = getReviewR
+
+-- | Show a number that's counting something so 1234 is 1,234.
+showCount :: (Show n,Integral n) => n -> String
+showCount = reverse . foldr merge "" . zip ("000,00,00,00"::String) . reverse . show where
+  merge (f,c) rest | f == ',' = "," ++ [c] ++ rest
+                   | otherwise = [c] ++ rest

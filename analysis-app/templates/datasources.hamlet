@@ -4,6 +4,6 @@ $if null sources
 $else
   <p>Below is a list of data sources that you have imported for the current analysis:
   <ul>
-    $forall (ident,source) <- sources
+    $forall source <- sources
       <li>
-        <a href=@{ReviewR ident}>#{show (srcTimestamp source)}
+        <a href=@{ReviewR (srcName source)}>#{show (srcTimestamp source)}

@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE TemplateHaskell #-}
@@ -7,21 +9,39 @@
 
 -- | Datatypes for analysis application API.
 
-module DataAnalysis.Application.Types
- where
+module DataAnalysis.Application.Types where
 
-import Control.Concurrent.STM
-import Control.Lens.TH
-import Data.ByteString.Lazy (ByteString)
-import qualified Data.ByteString as S (ByteString)
-import Data.Conduit (Conduit)
-import Data.CSV.Conduit (CSVSettings)
-import Data.Default
-import Data.IntMap (IntMap)
-import Data.Text (Text,pack)
-import Data.Time
-import Yesod
-import Yesod.Static
+import           Blaze.ByteString.Builder
+import           Blaze.ByteString.Builder.Char.Utf8 (fromText)
+import           Control.Exception (Exception)
+import           Control.Lens.TH
+import           Control.Monad.Trans.Resource
+import           Data.ByteString (ByteString)
+import           Data.CSV.Conduit
+import           Data.Conduit
+import qualified Data.Conduit.List as CL
+import qualified Data.Conduit.Text as CT
+import           Data.Default
+import           Data.Double.Conversion.Text
+import           Data.IORef
+import qualified Data.Map                             as Map
+import           Data.Maybe
+import           Data.Proxy
+import           Data.Text (Text)
+import           Data.Time
+import           Data.Typeable (Typeable)
+import           Network.HTTP.Conduit (Manager, http, parseUrl, responseBody)
+import           Yesod
+import           Yesod.Static
+
+data ParseError = ColumnNotFound !Text | CouldNotReadColumn !Text
+    deriving (Show, Typeable)
+instance Exception ParseError
+
+class FromMapRow a where
+    fromMapRow :: MapRow Text -> Either ParseError a
+class ToMapRow a where
+    toMapRow :: a -> MapRow Text
 
 -- | The type of visualization used to show some data.
 data VisualizationType
@@ -54,6 +74,12 @@ data DataPoint = DP
 
 $(makeLenses ''DataPoint)
 
+instance ToMapRow DataPoint where
+    toMapRow (DP label value g) =
+      Map.fromList [("label",label)
+                   ,("value",toShortest value)
+                   ,("group",fromMaybe "" g)]
+
 instance ToJSON DataPoint where
   toJSON (DP label value group') =
     case group' of
@@ -61,53 +87,96 @@ instance ToJSON DataPoint where
                         ,toJSON value]
       Just group'' -> toJSON [toJSON label,toJSON value,toJSON group'']
 
+class ManagerReader m where
+    askManager :: m Manager
+class HasManager a where
+    manager :: a -> Manager
+instance (HasManager a, MonadUnsafeIO m, MonadThrow m, MonadBaseControl IO m, MonadIO m) => ManagerReader (HandlerT a m) where
+    askManager = do
+        x <- getYesod
+        return $ manager x
+
+class (FromMapRow (AnalysisInput params), HasForm params) => HasAnalysis params where
+    type AnalysisInput params
+    analysisOf :: (MonadResource m, MonadBaseControl IO m, ManagerReader m)
+               => params
+               -> Conduit (AnalysisInput params) m DataPoint
+
+class Default a => HasForm a where
+    form :: RenderMessage site FormMessage => AForm (HandlerT site IO) a
+
 staticFiles "static/"
 
--- | Configuration for the analysis app.
-data AnalysisAppConfig params source = AnalysisAppConfig
-  { analysisFunc :: params -> [source] -> IO [DataPoint]
-  , analysisTitle :: Text
-  , analysisDefVisualization :: VisualizationType
-  , analysisDefDataExport :: ExportType
-  , analysisParser :: ByteString -> IO (Maybe [source])
-  , analysisPrint :: source -> Text
-  , analysisForm :: Html -> MForm (HandlerT GenericApp IO)
-                                  (FormResult params,WidgetT GenericApp IO ())
+-- | Yesod app type.
+data App = App
+  { appManager  :: !Manager
+  , appTitle    :: !Text
+  , appAnalysis :: !SomeAnalysis
+  , appStatic   :: !Static
   }
 
--- | Default configuration, doesn't produce any results.
-instance (Show source,Default params) => Default (AnalysisAppConfig params source) where
-  def = AnalysisAppConfig
-    { analysisFunc = \_params _data -> return []
-    , analysisTitle = "Untitled Analysis Application"
-    , analysisDefVisualization = def
-    , analysisDefDataExport = def
-    , analysisParser = const (return Nothing)
-    , analysisPrint = \source -> pack (show source)
-    , analysisForm = const undefined
-    }
-
--- | A generic app.
-data GenericApp =
-  forall source params.
-  Default params =>
-  GApp (App source params) Static
-
--- | Yesod app type.
-data App source params = App
-  { appParser     :: !(ByteString -> IO (Maybe [source]))
-  , appPrinter    :: !(source -> Text)
-  , appAnalyzer   :: !(params -> [source] -> IO [DataPoint])
-  , appCounter    :: !(TVar Int)
-  , appStore      :: !(TVar (IntMap (Source source)))
-  , appTitle      :: !Text
-  , appParamsForm :: !(Html -> MForm (HandlerT GenericApp IO)
-                                     (FormResult params,WidgetT GenericApp IO ()))
-  , appFromCSV    :: Monad m => CSVSettings -> Conduit source m S.ByteString
+-- | Some analysis.
+data SomeAnalysis = forall params. HasForm params => SomeAnalysis
+  { analysisProxy   :: !(Proxy params)
+  , analysisForm    :: !(forall site. RenderMessage site FormMessage =>
+                         AForm (HandlerT site IO) params)
+  , analysisConduit :: !(forall site. (HasManager site) =>
+                         IORef Int -> params -> Conduit ByteString (HandlerT site IO) DataPoint)
   }
 
 -- | An imported data source.
-data Source source = Source
-  { srcParsed    :: ![source]
+data DataSource = DataSource
+  { srcName      :: !Text
+  , srcPath      :: !FilePath
   , srcTimestamp :: !UTCTime
   }
+
+sourceURL :: (MonadResource m, MonadBaseControl IO m, ManagerReader m)
+          => String -> Source m ByteString
+sourceURL url = do
+    req <- liftIO $ parseUrl url
+    m <- lift askManager
+    res <- lift $ http req m
+    (src, _) <- lift $ unwrapResumable $ responseBody res
+    src
+
+analysisBSConduitCSV
+    :: (MonadResource m, MonadBaseControl IO m, FromMapRow input, ToMapRow output)
+    => Conduit input m output
+    -> Conduit ByteString m (Flush Builder)
+analysisBSConduitCSV inner =
+        CT.decode CT.utf8
+    =$= intoCSV defCSVSettings
+    =$= CL.mapM fromMapRow'
+    =$= inner
+    =$= CL.map toMapRow
+    =$= (writeHeaders defCSVSettings >> fromCSV defCSVSettings)
+    =$= CL.map (Chunk . fromText)
+
+analysisBSConduitJSON
+    :: (MonadResource m, MonadBaseControl IO m, FromMapRow input)
+    => IORef Int
+    -> Conduit input m DataPoint
+    -> Conduit ByteString m DataPoint
+analysisBSConduitJSON countRef inner =
+        CT.decode CT.utf8
+    =$= intoCSV defCSVSettings
+    =$= CL.iterM (const (liftIO (modifyIORef' countRef (+1))))
+    =$= CL.mapM fromMapRow'
+    =$= inner
+  where modifyIORef' :: IORef a -> (a -> a) -> IO ()
+        modifyIORef' ref f = do
+            x <- readIORef ref
+            let x' = f x
+            x' `seq` writeIORef ref x'
+
+fromMapRow' :: (FromMapRow a, MonadThrow m) => MapRow Text -> m a
+fromMapRow' = either monadThrow return . fromMapRow
+
+getSomeAnalysis :: (HasForm params, HasAnalysis params)
+                => Proxy params
+                -> SomeAnalysis
+getSomeAnalysis pparams = SomeAnalysis
+    pparams
+    form
+    (\countRef params -> analysisBSConduitJSON countRef (analysisOf params))

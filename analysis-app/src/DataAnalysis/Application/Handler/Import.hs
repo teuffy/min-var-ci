@@ -4,15 +4,13 @@
 
 module DataAnalysis.Application.Handler.Import where
 
-import Data.Conduit
-import Data.Conduit.Binary
 import Data.Default
 import Yesod
 import Yesod.Default.Util
 
 import DataAnalysis.Application.Foundation
-import DataAnalysis.Application.Types
 
+-- | Show the import form.
 getImportR :: Handler Html
 getImportR = do
     (formWidget, formEncType) <- generateFormPost uploadForm
@@ -21,20 +19,17 @@ getImportR = do
         setTitle "File Processor"
         $(widgetFileReload def "import")
 
+-- | Add the given file as a data source and redirect to the new
+-- source.
 postImportR :: Handler Html
 postImportR = do
   ((result, _), _) <- runFormPost uploadForm
   case result of
     FormSuccess fi -> do
-      GApp app@(App{appParser=parser}) _ <- getYesod
-      fileBytes <- runResourceT $ fileSource fi $$ sinkLbs
-      liftIO (parser fileBytes) >>= \x ->
-        case x of
-          Nothing -> error "Unable to parse CSV"
-          Just source -> do
-            i <- addSource app source
-            redirect (ReviewR i)
+      i <- addSource fi
+      redirect (ReviewR i)
     _ -> return ()
   redirect ImportR
 
+-- | Upload form.
 uploadForm = renderDivs $ fileAFormReq "source"
