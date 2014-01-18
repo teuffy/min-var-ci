@@ -4,13 +4,17 @@
 {-# LANGUAGE QuasiQuotes           #-}
 {-# LANGUAGE TemplateHaskell       #-}
 {-# LANGUAGE TypeFamilies          #-}
-{-# OPTIONS -Wall -Werror #-}
+{-# OPTIONS -Wall -Werror -funbox-strict-fields #-}
 
 module FP.ImportWizard.Foundation where
 
+import           BasicPrelude
 import           Yesod
 
+import           FP.ImportWizard.Temp (TempToken)
+
 data App = App
+    {   appApproot :: !Text }
 
 instance Yesod App where
     defaultLayout w = do
@@ -33,11 +37,14 @@ instance Yesod App where
                                 #{msg}
                         ^{pageBody p}
                 |]
+    approot = ApprootMaster appApproot
 
 instance RenderMessage App FormMessage where
     renderMessage _ _ = defaultFormMessage
 
 mkYesodData "App" [parseRoutes|
-/           HomeR       GET
-/add-source AddSourceR  GET POST
+/                       HomeR           GET
+/add-source             AddSourceR      GET POST
+/create-project         CreateProjectR  POST
+/git/#TempToken/*Texts  GitR            GET
 |]

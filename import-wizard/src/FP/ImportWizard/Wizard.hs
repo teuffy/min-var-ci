@@ -7,8 +7,7 @@
 {-# LANGUAGE QuasiQuotes           #-}
 {-# LANGUAGE RankNTypes            #-}
 {-# LANGUAGE RecordWildCards       #-}
-{-# LANGUAGE TemplateHaskell       #-}
-{-# OPTIONS -Wall -Werror #-}
+{-# OPTIONS -Wall -Werror -funbox-strict-fields #-}
 
 module FP.ImportWizard.Wizard where
 
@@ -19,7 +18,7 @@ import           Yesod                      hiding (get)
 
 runWizard
     ::  (WizardData data_, MonadHandler handler, WizardPage page)
-    => WizardConfig data_ page handler result -> handler (WizardResult result)
+    => WizardConfig data_ page handler result -> handler (WizardResult data_ result)
 runWizard config@WizardConfig{..} = do
 
     -- EKB TODO version of handleWizard that takes body as argument? or can runRequestBody be done multiple times?
@@ -70,27 +69,33 @@ runWizardForm
 runWizardForm form = do
     WizardConfig{..} <- _getConfig
     state <- _getState
-    maybeNav <- getNavigationSubmitted
-    case maybeNav of
-        Just nav -> do
+    if _isTopPageSubmitted state
+        then do
             ((result, widget), enctype) <- liftWizardHandler $ runFormPost form
-            mustValidate <- wcNavigationValidateForm (_topPage state) nav
-            if mustValidate
-                then return ((WizardFormNext result, widget), enctype)
-                else case result of
-                    FormSuccess _ -> return ((WizardFormSave result, widget), enctype)
-                    _ -> do
-                        _ <- getMessage -- just to clear the message
-                        return ((WizardFormDiscard, widget), enctype)
-        Nothing -> do
+            maybeNav <- getNavigationSubmitted
+            case maybeNav of
+                Nothing ->
+                    return ((WizardFormRender result, widget), enctype)
+                Just nav -> do
+                    process <- wcNavigationProcess (_topPage state) nav
+                    if process
+                        then return ((WizardFormProcess result, widget), enctype)
+                        else case result of
+                            FormSuccess _ ->
+                                return ((WizardFormContinue result, widget), enctype)
+                            _ -> do
+                                _ <- getMessage -- just to clear the message
+                                return ((WizardFormContinue result, widget), enctype)
+        else do
             (widget, enctype) <- liftWizardHandler $ generateFormPost form
-            return ((WizardFormSave FormMissing, widget), enctype)
+            return ((WizardFormRender FormMissing, widget), enctype)
 
--- EKB TODO not super happy with this approach, ends up needing too much repetition
+-- EKB TODO not happy with this approach, ends up needing too much repetition
 data WizardFormResult b
-    = WizardFormDiscard
-    | WizardFormSave (FormResult b)
-    | WizardFormNext (FormResult b)
+    = WizardFormProcess (FormResult b)
+    | WizardFormContinue (FormResult b)
+    | WizardFormRender (FormResult b)
+    deriving (Show)
 
 getWizardPageTitle
     ::  (MonadHandler handler, WizardData data_, WizardPage page)
@@ -149,9 +154,8 @@ data WizardConfig data_ page handler result = WizardConfig
         -- EKB TODO rename?
     ,   wcOnNavigation
             ::  (WizardPage page, MonadHandler handler)
-            =>  page -> WizardNavigation -> WizardT data_ page handler result (WizardResult result)
-        -- EKB TODO rename?
-    ,   wcNavigationValidateForm
+            =>  page -> WizardNavigation -> WizardT data_ page handler result (WizardResult data_ result)
+    ,   wcNavigationProcess
             ::  (WizardPage page, MonadHandler handler)
             =>  page -> WizardNavigation -> WizardT data_ page handler result Bool
     ,   wcFieldPrefix           ::  Text   }
@@ -170,27 +174,23 @@ wizardConfig defaultData pageHandler = WizardConfig
     ,   wcGetShowNavigation         =   defaultGetWizardShowNavigation
     ,   wcGetNavigationLabel        =   defaultGetWizardNavigationLabel
     ,   wcOnNavigation              =   defaultWizardOnNavigation
-    ,   wcNavigationValidateForm    =   defaultWizardNavigationValidateForm
+    ,   wcNavigationProcess         =   defaultWizardNavigationValidateForm
     ,   wcFieldPrefix               =   "__Yesod.Wizard" }
 
 type WizardPageHandler data_ page handler result
     =   (WizardPage page, MonadHandler handler, WizardData data_)
-    =>  data_ -> page -> WizardT data_ page handler result (WizardResult result)
+    =>  data_ -> page -> WizardT data_ page handler result (WizardResult data_ result)
 
 defaultWizardOnNavigation
     ::  (WizardPage page, MonadHandler handler, WizardData data_)
     =>  page
     ->  WizardNavigation
-    ->  WizardT data_ page handler result (WizardResult result)
+    ->  WizardT data_ page handler result (WizardResult data_ result)
 
-defaultWizardOnNavigation _ WizardCancel =
-    return WizardCancelled
-
-defaultWizardOnNavigation _ WizardBack =
-    navigateWizardBack
-
-defaultWizardOnNavigation _ WizardNext =
-    navigateWizardNext
+defaultWizardOnNavigation _ WizardCancel    = return WizardCancelled
+defaultWizardOnNavigation _ WizardBack      = navigateWizardBack
+defaultWizardOnNavigation _ WizardNext      = navigateWizardNext
+defaultWizardOnNavigation _ WizardFinish    = navigateWizardFinish
 
 defaultGetNextPage
     ::  (MonadHandler handler, WizardPage page)
@@ -201,7 +201,7 @@ defaultGetNextPage page =
         else Just $ succ page
 
 defaultGetWizardShowNavigation
-    ::  (MonadHandler handler)
+    ::  (MonadHandler handler, WizardPage page)
     =>  page -> WizardNavigation -> WizardT data_ page handler result Bool
 defaultGetWizardShowNavigation _ WizardCancel = return True
 defaultGetWizardShowNavigation _ WizardBack = do
@@ -209,7 +209,8 @@ defaultGetWizardShowNavigation _ WizardBack = do
     return $ case wpsPageStack of
         (_ : _ : _) ->  True
         _           ->  False
-defaultGetWizardShowNavigation _ WizardNext = return True
+defaultGetWizardShowNavigation page WizardNext = return $ page /= maxBound
+defaultGetWizardShowNavigation page WizardFinish = return $ page == maxBound
 
 -- EKB TODO use Yesod messages for l10n
 defaultGetWizardNavigationLabel
@@ -224,6 +225,7 @@ defaultGetWizardNavigationLabel page WizardNext = do
         Nothing -> return Nothing
         Just nextPage -> wcGetPageTitle nextPage
     return $ "Next" ++ maybe "" (": " ++) maybeNextPageTitle
+defaultGetWizardNavigationLabel _ WizardFinish =    return "Finish"
 
 defaultWizardNavigationValidateForm
     ::  (MonadHandler handler, WizardPage page)
@@ -231,10 +233,11 @@ defaultWizardNavigationValidateForm
 defaultWizardNavigationValidateForm _ WizardCancel  = return False
 defaultWizardNavigationValidateForm _ WizardBack    = return False
 defaultWizardNavigationValidateForm _ WizardNext    = return True
+defaultWizardNavigationValidateForm _ WizardFinish  = return True
 
 _runPageHandler
     ::  (MonadHandler handler, WizardPage page, WizardData data_)
-    =>  WizardT data_ page handler result (WizardResult result)
+    =>  WizardT data_ page handler result (WizardResult data_ result)
 _runPageHandler = do
     WizardConfig{..} <- _getConfig
     data_ <- getWizardData
@@ -243,7 +246,7 @@ _runPageHandler = do
 
 navigateWizardBack
     ::  (WizardPage page, WizardData data_, MonadHandler handler)
-    =>  WizardT data_ page handler result (WizardResult result)
+    =>  WizardT data_ page handler result (WizardResult data_ result)
 navigateWizardBack =
     _navigateModifyPageStack $ \pageStack ->
         case pageStack of
@@ -253,23 +256,31 @@ navigateWizardBack =
 
 navigateWizardNext
     ::  (WizardPage page, WizardData data_, MonadHandler handler)
-    =>  WizardT data_ page handler result (WizardResult result)
+    =>  WizardT data_ page handler result (WizardResult data_ result)
 navigateWizardNext = do
     WizardConfig{..} <- _getConfig
     page <- getWizardPage
     maybeNextPage <- wcGetNextPage page
     case maybeNextPage of
-        Just nextPage -> navigateWizardForward nextPage
-        Nothing -> _runPageHandler
+        Just nextPage   ->  navigateWizardForward nextPage
+                                -- EKB TODO could result in loop
+        Nothing         ->  _runPageHandler
+
+navigateWizardFinish
+    ::  (WizardPage page, WizardData data_, MonadHandler handler)
+    =>  WizardT data_ page handler result (WizardResult data_ result)
+navigateWizardFinish = do
+    data_ <- getWizardData
+    return $ WizardFinished data_
 
 navigateWizardForward
     :: (MonadHandler handler, WizardData data_, WizardPage page)
-    => page -> WizardT data_ page handler result (WizardResult result)
+    => page -> WizardT data_ page handler result (WizardResult data_ result)
 navigateWizardForward nextPage = _navigateModifyPageStack (nextPage :)
 
 continueWizard
     ::  (MonadHandler handler, WizardPage page, WizardData data_)
-    =>  data_ -> WizardT data_ page handler result (WizardResult result)
+    =>  data_ -> WizardT data_ page handler result (WizardResult data_ result)
 continueWizard newData = do
     -- EKB TODO probably all the other navigate* functions should also take newData.
     --      must be careful with _runPageHandler then (maybe it should also take newData)
@@ -277,6 +288,7 @@ continueWizard newData = do
     maybeNav <- getNavigationSubmitted
     case maybeNav of
         Just nav    -> navigateWizardWith nav
+                            -- EKB TODO could result in loop
         Nothing     -> _runPageHandler
 
 getNavigationSubmitted
@@ -311,7 +323,7 @@ _isNavigationSubmitted
 
 navigateWizardWith
     ::  (MonadHandler handler, WizardPage page, WizardData data_)
-    =>  WizardNavigation -> WizardT data_ page handler result (WizardResult result)
+    =>  WizardNavigation -> WizardT data_ page handler result (WizardResult data_ result)
 navigateWizardWith nav = do
     WizardConfig{..}    <-  _getConfig
     page                <-  getWizardPage
@@ -319,7 +331,7 @@ navigateWizardWith nav = do
 
 _navigateModifyPageStack
     :: (MonadHandler handler, WizardData data_, WizardPage page)
-    => ([page] -> [page]) -> WizardT data_ page handler result (WizardResult result)
+    => ([page] -> [page]) -> WizardT data_ page handler result (WizardResult data_ result)
 _navigateModifyPageStack f = do
     WizardConfig{..} <- _getConfig
     state@WizardState{wsPageState = pageState@WizardPageState{..}} <- _getState
@@ -335,7 +347,8 @@ getWizardNavigationsWidget = do
     w1 <- getWizardNavigationWidget WizardCancel
     w2 <- getWizardNavigationWidget WizardBack
     w3 <- getWizardNavigationWidget WizardNext
-    return (ws >> w1 >> w2 >> w3)
+    w4 <- getWizardNavigationWidget WizardFinish
+    return (ws >> w1 >> w2 >> w3 >> w4)
 
 getWizardStateWidget
     ::  (MonadHandler handler, WizardData data_, WizardPage page)
@@ -389,8 +402,10 @@ data WizardNavigation
     =   WizardCancel
     |   WizardBack
     |   WizardNext
+    |   WizardFinish
     deriving (Show, Enum, Bounded)
 
-data WizardResult result
+data WizardResult data_ result
     =   WizardCancelled
     |   WizardSuccess result
+    |   WizardFinished data_

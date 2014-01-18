@@ -1,148 +1,130 @@
+{-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes       #-}
 {-# LANGUAGE RecordWildCards   #-}
-{-# OPTIONS -Wall -Werror #-}
+{-# OPTIONS -Wall -Werror -funbox-strict-fields #-}
 
-module FP.ImportWizard.Handler.AddSource where
+module FP.ImportWizard.SourceWizard where
 
-import Control.Monad.Trans.Resource (ResourceT, runResourceT)
-import           Data.Conduit              (($$), ($$+-), (=$), Sink)
-import           Data.Conduit.Binary       (sourceFile)
-import qualified Data.Conduit.List         as CL
-import           Data.CSV.Conduit          (Row, defCSVSettings, intoCSV)
-import qualified Data.Set                  as Set
-import qualified Data.Text                 as Text
-import qualified Data.Text.Encoding        as Text
-import           Data.Char                 (isAlpha, isAlphaNum, isSpace)
-import           Data.Time.Calendar        (Day)
-import           Data.Time.Format          (parseTime)
-import           Data.Time.LocalTime       (TimeOfDay)
-import qualified Filesystem                as FS
-import qualified Filesystem.Path.CurrentOS as Path
-import           Network.HTTP.Conduit      (http, parseUrl, responseBody,
-                                            withManager)
-import           Safe                      (headDef)
-import           System.Directory          (getTemporaryDirectory)
-import           System.IO                 (hClose, openTempFile)
-import           System.Locale             (defaultTimeLocale)
+import           Control.Monad.Trans.Resource (ResourceT, runResourceT)
+import           Data.Char                    (isAlpha, isAlphaNum, isSpace)
+import           Data.Conduit                 (Sink, ($$), ($$+-), (=$))
+import           Data.Conduit.Binary          (sourceFile)
+import qualified Data.Conduit.List            as CL
+import           Data.CSV.Conduit             (Row, defCSVSettings, intoCSV)
+import qualified Data.Set                     as Set
+import qualified Data.Text                    as Text
+import qualified Data.Text.Encoding           as Text
+import           Data.Time.Calendar           (Day)
+import           Data.Time.Format             (parseTime)
+import           Data.Time.LocalTime          (TimeOfDay)
+import qualified Filesystem                   as FS
+import qualified Filesystem.Path.CurrentOS    as Path
+import           Network.HTTP.Conduit         (http, parseUrl, responseBody,
+                                               withManager)
+import           Safe                         (headDef)
+import           System.Locale                (defaultTimeLocale)
 
-import           FP.ImportWizard.Import    hiding (parseTime)
+import           FP.ImportWizard.Generate
+import           FP.ImportWizard.Import       hiding (parseTime)
+import           FP.ImportWizard.Temp
+import           FP.ImportWizard.Types
 import           FP.ImportWizard.Wizard
 
-getAddSourceR :: Handler Html
-getAddSourceR = do
-    wizardResult <- runWizard config
-    case wizardResult of
-        WizardSuccess html -> return html
-        WizardCancelled -> redirect HomeR
-  where
-    config = (wizardConfig defaultData iwPageHandler)
-        {   wcGetPageTitle = return . Just . iwPageTitle }
-        -- EKB FIXME move next to IWData def
-    defaultData = IWData
-        {   iwdFormat   =   IWFormatData "" IWCSVFormat
-        ,   iwdSource   =   IWSourceData True Nothing Nothing Nothing
-        ,   iwdTypes    =   IWTypesData [] }
-
-postAddSourceR :: Handler Html
-postAddSourceR = getAddSourceR
-
-iwPageHandler :: IWData -> IWPage -> IWWizard (WizardResult Html)
+iwPageHandler :: IWData -> IWPage -> IWWizard (WizardResult IWData Html)
 
 iwPageHandler oldData IWFormatPage = do
-
     ((res, formWidget), enctype) <- do
         let IWFormatData{..} = iwdFormat oldData
         runWizardForm $ renderTable $ IWFormatData
-            <$> areq textField "Name:" (Just iwfdName)
-            <*> areq (selectFieldSum formatTitle) "Format:" (Just iwfdFormat)
-
+            <$> areq textField "Name: " (Just iwfdName)
+            <*> areq (selectFieldList $ optionsListSum formatTitle)
+                    "Format: " (Just iwfdFormat)
     case res of
-        WizardFormDiscard -> continueWizard oldData
-        WizardFormSave (FormSuccess newIWFD@IWFormatData{..}) ->
-            continueWizard oldData{iwdFormat = newIWFD}
-        WizardFormNext (FormSuccess newIWFD@IWFormatData{..}) ->
+        WizardFormProcess (FormSuccess newIWFD@IWFormatData{..}) ->
             if iwfdFormat == IWCSVFormat
                 then
                     continueWizard oldData{iwdFormat = newIWFD}
                 else do
                     setMessage "Only the CSV format is supported for the demo."
                     renderIWPage formWidget enctype
-        _ -> renderIWPage formWidget enctype
-
-  where
-    selectFieldSum n = selectFieldList $ map (\x -> (n x, x)) [minBound .. maxBound]
+        WizardFormContinue (FormSuccess newIWFD) ->
+            continueWizard oldData{iwdFormat = newIWFD}
+        WizardFormContinue _ ->
+            continueWizard oldData
+        _ ->
+            renderIWPage formWidget enctype
 
 iwPageHandler oldData@IWData{iwdSource = oldIwsd} IWSourcePage = do
 
     defaultCsv <- liftIO $ getCsvContent oldIwsd
     ((res, formWidget), enctype) <- runWizardForm $ renderTable $ SourceForm
-        <$> aopt urlField "CSV data source URL:"{fsAttrs=wideFieldAttrs} (Just $ iwsdUrl oldIwsd)
-        <*> aopt textareaField "or enter CSV data:"{fsAttrs=largeTextareaAttrs} (Just $ Textarea <$> defaultCsv)
-        <*> fileAFormOpt "or upload CSV file:"
-        <*> areq checkBoxField "Has header row:" (Just $ iwsdHasHeaderRow oldIwsd)
+        <$> aopt urlField "CSV data source URL: "{fsAttrs=wideFieldAttrs} (Just $ iwsdUrl oldIwsd)
+        <*> aopt textareaField "or enter CSV data: "{fsAttrs=largeTextareaAttrs} (Just $ Textarea <$> defaultCsv)
+        <*> fileAFormOpt "or upload CSV file: "
+        <*> areq checkBoxField "Has header row: " (Just $ iwsdHasHeaderRow oldIwsd)
         -- EKB TODO also specify separator and quote characters
 
     case res of
-        WizardFormDiscard -> continueWizard oldData
-        WizardFormSave (FormSuccess sf) -> continueWizard =<< liftIO (saveForm sf)
-        WizardFormNext (FormSuccess sf@SourceForm{..}) -> do
+        WizardFormProcess (FormSuccess sf@SourceForm{..}) -> do
             savedData@IWData{iwdSource = newIwsd} <- liftIO $ saveForm sf
-            if (maybe1 (iwsdCsvTempPath newIwsd) + maybe1 (iwsdUrl newIwsd) + maybe1 (iwsdUploadTempPath newIwsd)) /= 1
+            if (maybe1 (iwsdCsvTempToken newIwsd) + maybe1 (iwsdUrl newIwsd) + maybe1 (iwsdUploadTempToken newIwsd)) /= 1
                 then do
                     setMessage "Exactly one data source must be specified."
                     renderIWPage formWidget enctype
-                else do
-                    if newIwsd /= oldIwsd
-                        then do
-                            maybeTypes <- liftIO $ deriveCsvColumns newIwsd
-                            case maybeTypes of
-                                Nothing -> continueWizard savedData
-                                Just types -> continueWizard savedData{iwdTypes = IWTypesData types}
-                        else continueWizard savedData
+                else if newIwsd /= oldIwsd
+                    then do
+                        maybeTypes <- liftIO $ deriveCsvColumns newIwsd
+                        case maybeTypes of
+                            Nothing -> continueWizard savedData
+                            Just types -> continueWizard savedData{iwdTypes = types}
+                    else continueWizard savedData
+        WizardFormContinue (FormSuccess sf) -> continueWizard =<< liftIO (saveForm sf)
+        WizardFormContinue _ -> continueWizard oldData
         _ -> renderIWPage formWidget enctype
 
   where
 
     -- EKB TODO: generalize the URL/textarea/upload stuff into Wizard
-      
+
     saveForm SourceForm{..} = do
         -- EKB TODO must clean up temp files that are left due to abandoning wizard
         -- EKB TODO also catch exceptions here and clean up temp file
         let saveUrl = stripMaybe sfUrl
-        saveCsvTempPath <- case stripMaybe $ unTextarea <$> sfCsv of
+        saveCsvTempToken <- case stripMaybe $ unTextarea <$> sfCsv of
             Nothing -> return Nothing
             Just csv -> do
                 oldCsv <- getCsvContent oldIwsd
                 if Just csv == oldCsv
-                    then return $ iwsdCsvTempPath oldIwsd
+                    then return $ iwsdCsvTempToken oldIwsd
                     else do
-                        tempPath <- getTempPath
-                        FS.writeFile (Path.decodeString tempPath) $ Text.encodeUtf8 csv
-                        return $ Just tempPath
-        saveUploadTempPath <- case sfFileInfo of
-            Nothing -> 
-                if isNothing saveUrl && isNothing saveCsvTempPath
-                    then return $ iwsdUploadTempPath oldIwsd
-                    else return Nothing
+                        (tempToken, tempPath) <- newTempToken
+                        FS.writeFile tempPath $ Text.encodeUtf8 csv
+                        return $ Just tempToken
+        saveUploadTempToken <- case sfFileInfo of
+            Nothing ->
+                return $ if isNothing saveUrl && isNothing saveCsvTempToken
+                    then iwsdUploadTempToken oldIwsd
+                    else Nothing
             Just fileInfo -> do
-                tempPath <- getTempPath
+                (tempToken, tempPath) <- newTempToken
                 -- EKB TODO adjust Yesod instance's maximumContentLength as appropriate and have good error message
-                fileMove fileInfo tempPath
-                return $ Just tempPath
+                fileMove fileInfo (Path.encodeString tempPath)
+                return $ Just tempToken
         return oldData{iwdSource = oldIwsd
             {   iwsdUrl             =   saveUrl
-            ,   iwsdCsvTempPath     =   saveCsvTempPath
-            ,   iwsdUploadTempPath  =   saveUploadTempPath
+            ,   iwsdCsvTempToken    =   saveCsvTempToken
+            ,   iwsdUploadTempToken =   saveUploadTempToken
             ,   iwsdHasHeaderRow    =   sfHasHeaderRow }}
 
     getCsvContent :: IWSourceData -> IO (Maybe Text)
     getCsvContent IWSourceData{..} =
-        case iwsdCsvTempPath of
+        case iwsdCsvTempToken of
             Nothing -> return Nothing
-            Just csvTempPath ->
-                (Just . Text.decodeUtf8) <$> FS.readFile (Path.decodeString csvTempPath)
+            Just csvTempToken -> do
+                tempPath <- getTempTokenPath csvTempToken
+                (Just . Text.decodeUtf8) <$> FS.readFile tempPath
 
     deriveCsvColumns iwsd =
         intoSink iwsd $
@@ -167,10 +149,14 @@ iwPageHandler oldData@IWData{iwdSource = oldIwsd} IWSourcePage = do
                 withManager $ \mgr -> do
                     resp <- http req mgr
                     responseBody resp $$+- sink
-            Nothing -> case iwsdCsvTempPath of
-                Just csvTempFile -> runResourceT $ sourceFile csvTempFile $$ sink
-                Nothing -> case iwsdUploadTempPath of
-                    Just uploadTempFile -> runResourceT $ sourceFile uploadTempFile $$ sink
+            Nothing -> case iwsdCsvTempToken of
+                Just csvTempToken -> do
+                    tempPath <- getTempTokenPath csvTempToken
+                    runResourceT $ sourceFile (Path.encodeString tempPath) $$ sink
+                Nothing -> case iwsdUploadTempToken of
+                    Just uploadTempToken -> do
+                        tempPath <- getTempTokenPath uploadTempToken
+                        runResourceT $ sourceFile (Path.encodeString tempPath) $$ sink
                     Nothing -> return Nothing
 
 
@@ -209,10 +195,7 @@ iwPageHandler oldData@IWData{iwdSource = oldIwsd} IWSourcePage = do
     analyzeRowCount =   1000
     maxEnumSize     =   50
 
-    getTempPath = do
-        (path, h) <- flip openTempFile "sample.csv" =<< getTemporaryDirectory
-        hClose h
-        return path
+
 
     stripMaybe :: Maybe Text -> Maybe Text
     stripMaybe mt =
@@ -223,27 +206,69 @@ iwPageHandler oldData@IWData{iwdSource = oldIwsd} IWSourcePage = do
     maybe1 :: Maybe a -> Int
     maybe1 = maybe 0 (const 1)
 
-iwPageHandler oldData@IWData{iwdTypes = oldIwtd} IWTypesPage = do
-    ((res, formWidget), enctype) <- runWizardForm $ \extra -> do
+iwPageHandler oldData@IWData{iwdTypes = oldColumns} IWTypesPage = do
 
-        columnForms <- forM (iwtdColumns oldIwtd) $ \IWColumn{..} -> do
+    ((res, formWidget), enctype) <- runWizardForm (makeForm oldColumns)
+
+    case res of
+        WizardFormProcess (FormSuccess columnForms) -> do
+            let newData@IWData{iwdTypes = newColumns} = saveForm columnForms
+                errors = catMaybes $ flip map newColumns $ \col@IWColumn{..} -> case iwcType of
+                    IWEnumType s
+                        |   Set.null s  -> Just (col, "needs at least one enumeration value.")
+                        |   otherwise   -> Nothing
+                    IWDayType "" -> Just (col, "needs a date format.")
+                    IWTimeOfDayType "" -> Just (col, "needs a time format.")
+                    _ -> Nothing
+            case errors of
+                [] ->
+                    continueWizard newData
+                ((IWColumn{..}, msg):_) -> do
+                    setMessage $ "Column " ++ toHtml iwcName ++ " " ++ msg
+                    renderIWPage formWidget enctype
+        WizardFormContinue (FormSuccess columnForms) ->
+            continueWizard $ saveForm columnForms
+        WizardFormContinue _ ->
+            continueWizard oldData
+        WizardFormRender (FormSuccess columnForms) -> do
+            let newData = saveForm columnForms
+            putWizardData newData
+            (formWidget', enctype') <- liftWizardHandler $
+                generateFormPost (makeForm (iwdTypes newData))
+            renderIWPage formWidget' enctype'
+        _ ->
+            renderIWPage formWidget enctype
+
+  where
+
+    makeForm columns extra = do
+
+        columnForms <- forM columns $ \IWColumn{..} -> do
             (nameRes, nameView) <- mreq textField "" (Just iwcName)
-            (typeRes, typeView) <- mreq (selectFieldList typeFieldOptions) ""
+            (typeRes, typeView) <- mreq (selectFieldList typeFieldOptions)
+                                        ""{fsAttrs = [("onchange", "this.form.submit()")]}
                                         (Just $ typeFieldValue iwcType)
             (optionalRes, optionalView) <- mreq checkBoxField "" (Just iwcOptional)
             (defaultRes, defaultView) <- mopt textField "" (Just iwcDefault)
             maybeAttribField <- case iwcType of
-                IWDayType f -> Just <$> mreq textField "Format:" (Just f)
-                IWTimeOfDayType f -> Just <$> mreq textField "Format:" (Just f)
+                IWDayType f ->
+                    Just <$> mopt textField "Format: " (Just $ Just f)
+                IWTimeOfDayType f ->
+                    Just <$> mopt textField "Format: " (Just $ Just f)
                 IWEnumType v ->
-                    Just <$> mreq textField "Values:"
-                        (Just $ Text.intercalate enumValueDelimiter $ Set.toList v)
-                _ -> return Nothing
-            let columnRes = IWColumn
-                    <$> nameRes
-                    <*> typeRes
-                    <*> optionalRes
-                    <*> defaultRes
+                    Just <$> mopt textField "Values: "
+                        (Just $ Just $ Text.intercalate enumValueDelimiter $ Set.toList v)
+                _ ->
+                    return Nothing
+            let columnRes = ColumnForm
+                    <$> (IWColumn
+                        <$> nameRes
+                        <*> typeRes
+                        <*> optionalRes
+                        <*> defaultRes)
+                    <*> case maybeAttribField of
+                            Just (attribRes, _) -> attribRes
+                            Nothing -> pure Nothing
                 columnWidget = [whamlet|
                     <tr>
                         <td>^{fvInput nameView}
@@ -270,16 +295,29 @@ iwPageHandler oldData@IWData{iwdTypes = oldIwtd} IWTypesPage = do
                         ^{columnWidget} |]
         return (formResultRows columnForms, widget)
 
-    case res of
-        WizardFormDiscard -> continueWizard oldData
-        WizardFormSave (FormSuccess newColumns) -> saveAndContinue newColumns
-        WizardFormNext (FormSuccess newColumns) -> saveAndContinue newColumns
-        _ -> renderIWPage formWidget enctype
+    saveForm :: [ColumnForm] -> IWData
+    saveForm columnForms =
+        oldData{iwdTypes = zipWith (curry updateColumn) oldColumns columnForms }
 
-  where
+    updateColumn :: (IWColumn, ColumnForm) -> IWColumn
+    updateColumn
+            (   IWColumn{iwcType = oldIwcType}
+            ,   ColumnForm{cfAttrib, cfColumn = newCol@IWColumn{iwcType = newIwcType}}) =
+        newCol{iwcType = updatedIwcType}
+      where
+        updatedIwcType = if typeFieldValue oldIwcType == typeFieldValue newIwcType
+            then case newIwcType of
+                IWEnumType _ -> IWEnumType $
+                    Set.fromList $ map Text.strip $ Text.splitOn enumValueDelimiter $ fromMaybe "" cfAttrib
+                IWDayType _ -> IWDayType $ fromMaybe "" cfAttrib
+                IWTimeOfDayType _ -> IWTimeOfDayType $ fromMaybe "" cfAttrib
+                _ -> newIwcType
+            else newIwcType
 
+    typeFieldOptions :: [(Text, IWType)]
     typeFieldOptions = nub $ map typeFieldOption defaultPossibleTypes
 
+    typeFieldValue :: IWType -> IWType
     typeFieldValue = snd . typeFieldOption
 
     typeFieldOption :: IWType -> (Text, IWType)
@@ -290,31 +328,37 @@ iwPageHandler oldData@IWData{iwdTypes = oldIwtd} IWTypesPage = do
     typeFieldOption (IWDayType _)        =   ("Day"          , IWDayType "")
     typeFieldOption (IWTimeOfDayType _)  =   ("TimeOfDay"    , IWTimeOfDayType "")
 
-    saveAndContinue newColumns = do
-        let newData = oldData{iwdTypes = oldIwtd{iwtdColumns = newColumns}}
-        continueWizard newData
+    formResultRows :: [(FormResult f, w)] -> FormResult [f]
+    formResultRows = mconcat . map ((pure <$>) . fst)
 
     enumValueDelimiter = ","
 
-    formResultRows = mconcat . map ((pure <$>) . fst)
+iwPageHandler oldData IWInvalidPage = do
+    ((res, formWidget), enctype) <-
+        runWizardForm $ renderTable $ areq (radioFieldList $ optionsListSum invalidTitle)
+            "Invalid row handling: " (Just $ iwdInvalid oldData)
+    case res of
+        WizardFormProcess (FormSuccess newInvalid) ->
+            continueWizard oldData{iwdInvalid = newInvalid}
+        WizardFormContinue (FormSuccess newInvalid) ->
+            continueWizard oldData{iwdInvalid = newInvalid}
+        WizardFormContinue _ ->
+            continueWizard oldData
+        _ ->
+            renderIWPage formWidget enctype
 
-iwPageHandler _ IWInvalidPage   =   error "Not implemented yet!" -- EKB TODO
-iwPageHandler _ IWReviewPage    =   undefined -- EKB TODO
-iwPageHandler _ IWGeneratedPage =   undefined -- EKB TODO
+iwPageHandler data_ IWReviewPage = do
+    submitted <- getIsPageSubmitted
+    if submitted
+        then continueWizard data_
+        else do
+            let widget = toWidget [shamlet|
+                    <pre>#{generateCode data_}
+                    |]
+            -- EKB TODO need to hard-code `Multipart` when not using runWizardForm?
+            renderIWPage widget Multipart
 
-wideFieldAttrs :: [(Text, Text)]
-wideFieldAttrs = [("size", "65"), ("style", "width:65ex")]
-
-largeTextareaAttrs :: [(Text, Text)]
-largeTextareaAttrs = ("rows", "10") : wideFieldAttrs
-
-data SourceForm = SourceForm
-    {   sfUrl          ::  Maybe Text
-    ,   sfCsv          ::  Maybe Textarea
-    ,   sfFileInfo     ::  Maybe FileInfo
-    ,   sfHasHeaderRow ::  Bool }
-
-renderIWPage :: Widget -> Enctype -> IWWizard (WizardResult Html)
+renderIWPage :: Widget -> Enctype -> IWWizard (WizardResult IWData Html)
 renderIWPage formWidget enctype = do
     maybeTitle <- getWizardPageTitle
     navWidget <- getWizardNavigationsWidget
@@ -328,8 +372,27 @@ renderIWPage formWidget enctype = do
                         <td colspan=2>
                             ^{navWidget}
         |]
-    -- EKB TODO this probably shouldn't have to wrap its output in WizardResult
     return $ WizardSuccess html
+
+optionsListSum :: (Bounded a, Enum a) => (a -> Text) -> [(Text, a)]
+optionsListSum n = map (\x -> (n x, x)) [minBound .. maxBound]
+
+wideFieldAttrs :: [(Text, Text)]
+wideFieldAttrs = [("size", "65"), ("style", "width:65ex")]
+
+largeTextareaAttrs :: [(Text, Text)]
+largeTextareaAttrs = ("rows", "10") : wideFieldAttrs
+
+data SourceForm = SourceForm
+    {   sfUrl          ::  Maybe Text
+    ,   sfCsv          ::  Maybe Textarea
+    ,   sfFileInfo     ::  Maybe FileInfo
+    ,   sfHasHeaderRow ::  Bool }
+
+data ColumnForm = ColumnForm
+    {   cfColumn :: IWColumn
+    ,   cfAttrib :: Maybe Text }
+    deriving (Show)
 
 type IWWizard a = WizardT IWData IWPage Handler Html a
 
@@ -338,8 +401,7 @@ iwPageTitle IWFormatPage      =   "Name and data format"
 iwPageTitle IWSourcePage      =   "Data source"
 iwPageTitle IWTypesPage       =   "Column data types"
 iwPageTitle IWInvalidPage     =   "Invalid data handling"
-iwPageTitle IWReviewPage      =   "Review"
-iwPageTitle IWGeneratedPage   =   "Generated code"
+iwPageTitle IWReviewPage      =   "Review generated code"
 
 data IWPage
     =   IWFormatPage
@@ -347,49 +409,17 @@ data IWPage
     |   IWTypesPage
     |   IWInvalidPage
     |   IWReviewPage
-    |   IWGeneratedPage
     deriving (Read, Show, Eq, Bounded, Enum)
 
-data IWData =   IWData
-    {   iwdFormat :: IWFormatData
-    ,   iwdSource :: IWSourceData
-    ,   iwdTypes  :: IWTypesData
-    } deriving (Read, Show, Eq)
-
-data IWFormatData = IWFormatData
-    {   iwfdName   :: Text
-    ,   iwfdFormat :: IWFormat
-    } deriving (Read, Show, Eq)
-
-data IWSourceData =  IWSourceData
-    {   iwsdHasHeaderRow    :: Bool
-    ,   iwsdUrl             :: Maybe Text
-        -- EKB TODO security risk to store full paths here!
-    ,   iwsdCsvTempPath     :: Maybe String
-    ,   iwsdUploadTempPath  :: Maybe String
-    } deriving (Read, Show, Eq)
-
-data IWTypesData = IWTypesData
-    {   iwtdColumns :: [IWColumn]
-    } deriving (Read, Show, Eq)
-
-data IWColumn = IWColumn
-    {   iwcName     :: Text
-    ,   iwcType     :: IWType
-    ,   iwcOptional :: Bool
-    ,   iwcDefault  :: Maybe Text
-    } deriving (Read, Show, Eq)
+invalidTitle :: IWInvalid -> Text
+invalidTitle IWInvalidStop      =   "Stop processing"
+invalidTitle IWInvalidSkip      =   "Skip and ignore the row"
+invalidTitle IWInvalidDefault   =   "Set invalid columns to default values"
 
 formatTitle :: IWFormat -> Text
 formatTitle IWCSVFormat             =   "CSV file"
 formatTitle IWPostgresFormat        =   "Postgres database"
 formatTitle IWStockDataFeedFormat   =   "Stock data feed"
-
-data IWFormat
-    =   IWCSVFormat
-    |   IWPostgresFormat
-    |   IWStockDataFeedFormat
-    deriving (Read, Show, Eq, Enum, Bounded)
 
 defaultPossibleTypes :: [IWType]
 defaultPossibleTypes =
@@ -420,12 +450,3 @@ defaultPossibleTypes =
     ,   IWTimeOfDayType "%-I:%-M:%-S%P"     -- "12:45:02PM"
     ,   IWEnumType Set.empty
     ,   IWTextType ]
-
-data IWType
-    =   IWTextType
-    |   IWIntType
-    |   IWDoubleType
-    |   IWDayType Text
-    |   IWTimeOfDayType Text
-    |   IWEnumType (Set.Set Text)
-    deriving (Read, Show, Eq)

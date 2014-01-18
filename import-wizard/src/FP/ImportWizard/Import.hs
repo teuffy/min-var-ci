@@ -1,6 +1,6 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# OPTIONS -Wall -Werror #-}
+{-# OPTIONS -Wall -Werror -funbox-strict-fields #-}
 
 module FP.ImportWizard.Import
     ( module FP.ImportWizard.Import
