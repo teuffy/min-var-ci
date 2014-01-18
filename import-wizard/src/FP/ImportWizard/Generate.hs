@@ -10,8 +10,6 @@ import           BasicPrelude
 import qualified Data.Set              as Set
 import qualified Data.Text             as Text
 import           Language.Haskell.Exts
-import Text.Show.Pretty (ppShow)
-import Debug.Trace (trace)
 
 import           FP.ImportWizard.Types
 
@@ -54,7 +52,7 @@ generateCode IWData{..} =
             xs -> Just (False, map (IAbs . Ident) xs ))
 
     decls =
-            trace (ppShow $ concatMap columnDecls iwdTypes) (concatMap columnDecls iwdTypes)
+            concatMap columnDecls iwdTypes
         ++  [SpliceDecl
                 srcloc
                 (App
