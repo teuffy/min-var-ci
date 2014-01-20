@@ -53,13 +53,15 @@ function makeChart(type,data){
 		},
 		xaxis: {
 		    mode: mode,
-		    tickLength: 0
+		    tickLength: 0,
+                    show: groupList < 20
 		}
 	    });
         } else if (type === 'Line') {
 	    $.plot("#placeholder", groupList,{
                 xaxis: {
-                    mode: mode
+                    mode: mode,
+                    show: groupList < 20
                 }
             });
         } else if (type == 'Pie') {
@@ -73,8 +75,12 @@ function makeChart(type,data){
             $.plot('#placeholder', series, {
                 series: {
                     pie: {
-                        show: true
+                        show: true,
+                        label: { show: series.length < 20 }
                     }
+                },
+                legend: {
+                    show: series.length < 20
                 }
             });
         }
