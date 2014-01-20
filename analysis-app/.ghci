@@ -1,1 +1,2 @@
 :set -idist/build/autogen -i../dist/build/autogen -isrc/main -isrc
+:set -hide-package monads-tf
