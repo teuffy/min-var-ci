@@ -11,18 +11,10 @@ module DataAnalysis.Application.Params where
 import           Control.Applicative
 import           Control.Monad.Error ()
 import           Data.Char
-import           Data.Data
-import           Data.List
-import           Data.Map (Map)
-import qualified Data.Map as M
 import           Data.Maybe
 import           Data.Monoid
 import           Data.Text (Text)
 import qualified Data.Text as T
-import           Language.Haskell.TH
-import           Language.Haskell.TH.Lift
-import           Language.Haskell.TH.Quote
-import           Language.Haskell.TH.Syntax
 
 -- | A parameter specification.
 data Parameter = Parameter
