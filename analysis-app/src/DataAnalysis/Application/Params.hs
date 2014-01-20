@@ -1,3 +1,5 @@
+{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ViewPatterns      #-}
@@ -7,7 +9,7 @@
 module DataAnalysis.Application.Params where
 
 import           Control.Applicative
-import           Control.Monad.Error
+import           Control.Monad.Error ()
 import           Data.Char
 import           Data.Data
 import           Data.List
@@ -18,38 +20,40 @@ import           Data.Monoid
 import           Data.Text (Text)
 import qualified Data.Text as T
 import           Language.Haskell.TH
+import           Language.Haskell.TH.Lift
+import           Language.Haskell.TH.Quote
 import           Language.Haskell.TH.Syntax
-import           Text.Read
 
 -- | A parameter specification.
-data Parameter a = Parameter
-  { paramName :: !Text
-  , paramType :: !Text
-  , paramMin  :: !(Maybe a)
-  , paramMax  :: !(Maybe a)
-  , paramDesc :: !Text
-  , paramDef  :: !(Maybe a)
-  } deriving (Show)
+data Parameter = Parameter
+  { paramName :: !String
+  , paramType :: !String
+  , paramMin  :: !(Maybe String)
+  , paramMax  :: !(Maybe String)
+  , paramDesc :: !String
+  , paramDef  :: !(Maybe String)
+  }
 
 -- | Parse a parameter spec from tokens.
-fromTokens :: (Read a,Show a,Typeable a) => [Token] -> Either String (Parameter a)
+fromTokens :: [Token] -> Either String Parameter
 fromTokens xs@(Token name:Spaces{}:Token typ:_) =
   Parameter
-    <$> pure name
-    <*> pure typ
-    <*> opt parseRead "min"
-    <*> opt parseRead "max"
+    <$> pure (T.unpack name)
+    <*> pure (T.unpack typ)
+    <*> opt asis "min"
+    <*> opt asis "max"
     <*> text "desc"
-    <*> opt parseRead "default"
-  where opt :: (Text -> Either String a) -> Text -> Either String (Maybe a)
+    <*> opt asis "default"
+  where asis = Right
+        opt :: (String -> Either String a) -> Text -> Either String (Maybe a)
         opt cont name = do mv <- optional (text name)
                            case mv of
                              Nothing -> return Nothing
                              Just t -> fmap Just (cont t)
-        text :: Text -> Either String Text
+        text :: Text -> Either String String
         text name =
-          maybe (Left ("Couldn't find key: " <> T.unpack name))
-                Right
+          maybe (Left ("Expected argument: " <> T.unpack name <> "=<value>"))
+                (Right . T.unpack)
                 (listToMaybe (mapMaybe match xs))
           where match tok =
                   case tok of
@@ -59,11 +63,6 @@ fromTokens xs@(Token name:Spaces{}:Token typ:_) =
                           | key == name && T.isPrefixOf "=" value -> Just (T.drop 1 value)
                         _ -> Nothing
                     _ -> Nothing
-        parseRead :: (Typeable a,Read a) => Text -> Either String a
-        parseRead t = r
-          where r = case reads (T.unpack t) of
-                      [(v,"")] -> Right v
-                      _ -> Left ("Unable to parse value of type " <> (show (typeOf r)))
 fromTokens _ = Left "Parameter format: <name> <type> [arg1=value1 argn=valuen …]"
 
 -- | A token used by the parser.
