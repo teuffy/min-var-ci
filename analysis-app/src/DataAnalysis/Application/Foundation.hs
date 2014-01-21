@@ -58,6 +58,9 @@ instance Yesod App where
       App{appTitle}  ->
         giveUrlRenderer $(hamletFile "templates/default-layout-wrapper.hamlet")
 
+instance RenderMessage App FormMessage where
+  renderMessage _ _ = defaultFormMessage
+
 -- | Add a new source.
 --
 -- TODO: Generate a proper temporary filename.

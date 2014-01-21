@@ -26,6 +26,14 @@ import           UserAnalysis
 import           UserParameters
 import           Yesod
 
+-- | Implement an analysis for the RsiParams type.
+instance HasAnalysis RsiParams where
+    type AnalysisInput RsiParams = Stock
+
+    analysisOf = userAnalysis
+
 -- | Start the analysis server with the following configuration.
 main :: IO ()
-main = runAnalysisApp "RSI analysis" userAnalysis
+main =
+  runAnalysisApp "RSI analysis"
+                 (Proxy :: Proxy RsiParams)
