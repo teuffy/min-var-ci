@@ -23,7 +23,7 @@ import qualified Filesystem                   as FS
 import qualified Filesystem.Path.CurrentOS    as Path
 import           Network.HTTP.Conduit         (http, parseUrl, responseBody,
                                                withManager)
-import           Safe                         (headDef)
+import           Safe                         (headDef, readMay)
 import           System.Locale                (defaultTimeLocale)
 
 import           FP.ImportWizard.Generate
@@ -176,8 +176,8 @@ iwPageHandler oldData@IWData{iwdSource = oldIwsd} IWSourcePage = do
                 else
                     (   catMaybes $ flip map oldPossibleTypes $ \t -> case t of
                             IWTextType          ->  Just t
-                            IWIntType           ->  const t <$> (readMay val :: Maybe Int)
-                            IWDoubleType        ->  const t <$> (readMay val :: Maybe Double)
+                            IWIntType           ->  const t <$> (Safe.readMay $ Text.unpack val :: Maybe Int)
+                            IWDoubleType        ->  const t <$> (Safe.readMay $ Text.unpack val :: Maybe Double)
                             IWDayType fmt       ->  const t <$>
                                 (parseTime defaultTimeLocale (Text.unpack fmt) (Text.unpack val) :: Maybe Day)
                             IWTimeOfDayType fmt ->  const t <$>

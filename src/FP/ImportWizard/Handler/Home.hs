@@ -10,15 +10,16 @@ import qualified Data.Text.Encoding           as Text
 import qualified Filesystem                   as FS
 import qualified Filesystem.Path.CurrentOS    as Path
 import           Network.HTTP.Types.URI       (urlEncode)
+import           Safe                         (readMay)
 import           System.Exit                  (ExitCode (..))
 import           System.Process               (readProcessWithExitCode)
 
+import           FP.ImportWizard.Generate
 import           FP.ImportWizard.Import
 import           FP.ImportWizard.SourceWizard
 import           FP.ImportWizard.Temp
-import           FP.ImportWizard.Wizard
 import           FP.ImportWizard.Types
-import           FP.ImportWizard.Generate
+import           FP.ImportWizard.Wizard
 
 getHomeR :: Handler Html
 getHomeR = renderHome Nothing
@@ -72,7 +73,7 @@ postAddSourceR = getAddSourceR
 postCreateProjectR :: Handler Html
 postCreateProjectR = do
     (postFields, _) <- runRequestBody
-    let data_ = fromMaybe (error "Invalid/missing data") $ readMay =<< lookup "data" postFields
+    let data_ = fromMaybe (error "Invalid/missing data") $ (Safe.readMay . Text.unpack) =<< lookup "data" postFields
     (tempToken, tempPath) <- newTempToken
     liftIO $ do
         FS.createTree tempPath

@@ -14,6 +14,8 @@ module FP.ImportWizard.Wizard where
 import           BasicPrelude
 import           Control.Monad.Reader       (ReaderT, ask, runReaderT)
 import           Control.Monad.State.Strict (StateT, get, put, runStateT)
+import qualified Data.Text                  as Text
+import           Safe                       (readMay)
 import           Yesod                      hiding (get)
 
 runWizard
@@ -24,7 +26,7 @@ runWizard config@WizardConfig{..} = do
     -- EKB TODO version of handleWizard that takes body as argument? or can runRequestBody be done multiple times?
     (postFields, _) <- runRequestBody
 
-    let wps = case readMay =<< lookup (_stateFieldName config) postFields of
+    let wps = case (Safe.readMay. Text.unpack) =<< lookup (_stateFieldName config) postFields of
             Just wps'@WizardPageState{wpsSubmittedPage = Just _} -> wps'
             _   ->  WizardPageState
                 {   wpsSubmittedPage    =   Nothing
