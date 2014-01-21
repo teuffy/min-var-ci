@@ -11,6 +11,7 @@ module DataAnalysis.Application.Prelude
 import Data.Proxy (Proxy)
 import Data.Text (Text)
 import Yesod
+import Data.Time
 import Yesod.Static
 
 import DataAnalysis.Application.Types
@@ -28,8 +29,10 @@ runAnalysisApp :: HasAnalysis params => Text -> Proxy params -> IO ()
 runAnalysisApp title params = do
   s <- static "static"
   man <- newManager defaultManagerSettings
+  now <- getCurrentTime
   warpEnv
     (App man
          title
          (getSomeAnalysis params)
-         s)
+         s
+         now)

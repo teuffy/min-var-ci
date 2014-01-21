@@ -113,6 +113,7 @@ data App = App
   , appTitle    :: !Text
   , appAnalysis :: !SomeAnalysis
   , appStatic   :: !Static
+  , appStart    :: !UTCTime
   }
 
 -- | Some analysis.

@@ -4,7 +4,7 @@
   <div .span6>
     <div .well>
       <h2>Parameters
-      <form method=post action=@{ReviewR ident} enctype=#{enctype}>
+      <form method=get action=@{ReviewR ident} enctype=#{enctype}>
         ^{widget}
         <button>Update
   <div .span6>
