@@ -10,6 +10,7 @@ import           UserParameters
 -- Our analysis consists of a number of individual pipeline components.
 -- Each component is combined together with the =$= operator, which
 -- causes the output of one component to become the input of the next.
+userAnalysis :: MonadIO m => RsiParams -> Conduit Stock m DataPoint
 userAnalysis (RsiParams size alpha bars) =
         stocksToUpDown                 -- compute the change in stock price on two consecutive days
     =$= movingGroupsOf size            -- group the changes into vectors of the user-specified size

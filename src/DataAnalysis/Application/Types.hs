@@ -1,4 +1,5 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -12,24 +13,22 @@
 
 module DataAnalysis.Application.Types where
 
-import           Blaze.ByteString.Builder
-import           Blaze.ByteString.Builder.Char.Utf8 (fromText)
 import           Control.Exception (Exception)
 import           Control.Lens.TH
 import           Control.Monad.Trans.Resource
 import           Data.ByteString (ByteString)
 import           Data.CSV.Conduit
+import           Data.CSV.Conduit.Persist
 import           Data.Conduit
 import qualified Data.Conduit.List as CL
-import qualified Data.Conduit.Text as CT
+import           Data.Data
 import           Data.Default
 import           Data.Double.Conversion.Text
 import           Data.IORef
 import qualified Data.Map                             as Map
 import           Data.Maybe
-import           Data.Text (Text)
+import           Data.Proxy
 import           Data.Time
-import           Data.Typeable (Typeable)
 import           Network.HTTP.Conduit (Manager, http, parseUrl, responseBody)
 import           Yesod
 import           Yesod.Static
@@ -136,43 +135,24 @@ sourceURL url = do
     (src, _) <- lift $ unwrapResumable $ responseBody res
     src
 
-analysisBSConduitCSV
-    :: (MonadResource m, MonadBaseControl IO m, FromMapRow input, ToMapRow output)
-    => Conduit input m output
-    -> Conduit ByteString m (Flush Builder)
-analysisBSConduitCSV inner =
-        CT.decode CT.utf8
-    =$= intoCSV defCSVSettings
-    =$= CL.mapM fromMapRow'
-    =$= inner
-    =$= CL.map toMapRow
-    =$= (writeHeaders defCSVSettings >> fromCSV defCSVSettings)
-    =$= CL.map (Chunk . fromText)
-
-analysisBSConduitJSON
-    :: (MonadResource m, MonadBaseControl IO m, FromMapRow input)
-    => IORef Int
-    -> Conduit input m DataPoint
-    -> Conduit ByteString m DataPoint
-analysisBSConduitJSON countRef inner =
-        CT.decode CT.utf8
-    =$= intoCSV defCSVSettings
-    =$= CL.iterM (const (liftIO (modifyIORef' countRef (+1))))
-    =$= CL.mapM fromMapRow'
-    =$= inner
+getSomeAnalysis
+  :: (PersistEntity b, HasForm params) =>
+     (params -> ConduitM b DataPoint (HandlerT App IO) ())
+     -> SomeAnalysis
+getSomeAnalysis userAnalysis = SomeAnalysis
+    form
+    (\countRef params ->
+       csvIntoEntities (Proxy :: Proxy b) =$=
+       CL.iterM (const (liftIO (modifyIORef' countRef (+1)))) =$=
+       CL.mapM (either (monadThrow . Ex) return) =$=
+       userAnalysis params)
+    def
   where modifyIORef' :: IORef a -> (a -> a) -> IO ()
         modifyIORef' ref f = do
-            x <- readIORef ref
-            let x' = f x
-            x' `seq` writeIORef ref x'
+          x <- readIORef ref
+          let x' = f x
+          x' `seq` writeIORef ref x'
 
-fromMapRow' :: (FromMapRow a, MonadThrow m) => MapRow Text -> m a
-fromMapRow' = either monadThrow return . fromMapRow
-
-getSomeAnalysis :: (HasForm params, FromMapRow input, Default params)
-                => (params -> Conduit input (HandlerT App IO) DataPoint)
-                -> SomeAnalysis
-getSomeAnalysis analysisOf = SomeAnalysis
-    form
-    (\countRef params -> analysisBSConduitJSON countRef (analysisOf params))
-    def
+data Ex = Ex Text
+  deriving (Data,Show,Typeable,Eq)
+instance Exception Ex
