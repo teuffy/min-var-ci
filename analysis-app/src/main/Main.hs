@@ -22,49 +22,18 @@ import           Data.Default
 import           Data.Proxy
 import           Data.Text                            (pack)
 import qualified Data.Vector                          as V
+import           UserAnalysis
+import           UserParameters
 import           Yesod
-
--- | Parameters to the analysis.
-data RsiParams = RsiParams
-    { rpSize  :: !Int -- ^ RSI grouping size
-    , rpAlpha :: !Double -- ^ alpha for exponential moving average
-    }
 
 -- | Implement an analysis for the RsiParams type.
 instance HasAnalysis RsiParams where
     type AnalysisInput RsiParams = Stock
 
-    analysisOf (RsiParams size alpha) =
-            stocksToUpDown
-        =$= CA.groupsOf size -- FIXME: need a better name, movingGroupsOf?
-        =$= CL.map (calculateRSI alpha)
-
--- | Make a form for the parameters, uses the 'Default' instance for
--- the default values.
-instance HasForm RsiParams where
-    form = RsiParams
-        <$> areq intField "Grouping size" (Just (rpSize def))
-        <*> areq doubleField "Alpha (for exponential moving average)" (Just (rpAlpha def))
-
--- | Default values for the parameters.
-instance Default RsiParams where
-  def = RsiParams 14
-                  0.6
+    analysisOf = userAnalysis
 
 -- | Start the analysis server with the following configuration.
 main :: IO ()
 main =
   runAnalysisApp "RSI analysis"
                  (Proxy :: Proxy RsiParams)
-
--- | Calculate the RSI value.
-calculateRSI
-    :: Double -- ^ alpha
-    -> V.Vector UpDown
-    -> DataPoint
-calculateRSI alpha v =
-    DP (pack (show (V.head v ^. udDay))) rsi' Nothing
-  where
-    rs = CA.exponentialMovingAverage udUp   alpha v
-       / CA.exponentialMovingAverage udDown alpha v
-    rsi' = 100 - (100 / (1 + rs))
