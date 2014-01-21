@@ -4,16 +4,24 @@
 
 module FP.ImportWizard.Types where
 
-import BasicPrelude
-import qualified Data.Set                     as Set
+import           BasicPrelude
+import           Data.CSV.Conduit.Persist (CsvInvalidRow(..))
+import qualified Data.Set                 as Set
 
-import FP.ImportWizard.Temp
-    
+import           FP.ImportWizard.Temp
+
+defaultIwData :: IWData
+defaultIwData = IWData
+    {   iwdFormat   =   IWFormatData "" IWCSVFormat
+    ,   iwdSource   =   IWSourceData True Nothing Nothing Nothing
+    ,   iwdTypes    =   []
+    ,   iwdInvalid  =   CsvInvalidRowStop }
+        
 data IWData =   IWData
     {   iwdFormat  :: IWFormatData
     ,   iwdSource  :: IWSourceData
     ,   iwdTypes   :: [IWColumn]
-    ,   iwdInvalid :: IWInvalid
+    ,   iwdInvalid :: CsvInvalidRow
     } deriving (Read, Show, Eq)
 
 data IWFormatData = IWFormatData
@@ -39,12 +47,6 @@ data IWFormat
     =   IWCSVFormat
     |   IWPostgresFormat
     |   IWStockDataFeedFormat
-    deriving (Read, Show, Eq, Enum, Bounded)
-
-data IWInvalid
-    =   IWInvalidStop
-    |   IWInvalidSkip
-    |   IWInvalidDefault
     deriving (Read, Show, Eq, Enum, Bounded)
 
 data IWType

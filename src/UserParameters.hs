@@ -3,7 +3,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module UserParameters (RsiParams (..), module X) where
 
-import           DataAnalysis.Application.Types.Stock as X
+import           DataAnalysis.Application.Import as X
 
 -- | Parameters to the analysis.
 data RsiParams = RsiParams

@@ -13,6 +13,7 @@ import           Data.Conduit                 (Sink, ($$), ($$+-), (=$))
 import           Data.Conduit.Binary          (sourceFile)
 import qualified Data.Conduit.List            as CL
 import           Data.CSV.Conduit             (Row, defCSVSettings, intoCSV)
+import           Data.CSV.Conduit.Persist     (CsvInvalidRow (..))
 import qualified Data.Set                     as Set
 import qualified Data.Text                    as Text
 import qualified Data.Text.Encoding           as Text
@@ -193,7 +194,9 @@ iwPageHandler oldData@IWData{iwdSource = oldIwsd} IWSourcePage = do
                                     else Nothing
                     ,   oldHasNull )
 
+    -- EKB TODO: make row count customizable
     analyzeRowCount =   1000
+    
     maxEnumSize     =   50
 
 
@@ -423,10 +426,10 @@ data IWPage
     |   IWReviewPage
     deriving (Read, Show, Eq, Bounded, Enum)
 
-invalidTitle :: IWInvalid -> Text
-invalidTitle IWInvalidStop      =   "Stop processing"
-invalidTitle IWInvalidSkip      =   "Skip and ignore the row"
-invalidTitle IWInvalidDefault   =   "Set invalid columns to default values"
+invalidTitle :: CsvInvalidRow -> Text
+invalidTitle CsvInvalidRowStop      =   "Stop processing"
+invalidTitle CsvInvalidRowSkip      =   "Skip and ignore the row"
+invalidTitle CsvInvalidRowDefault   =   "Set invalid columns to default values"
 
 formatTitle :: IWFormat -> Text
 formatTitle IWCSVFormat             =   "CSV file"

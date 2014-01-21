@@ -61,40 +61,4 @@ instance FromMapRow Stock where
                         Nothing -> Left $ CouldNotReadColumn v
                         Just x -> Right x
 
-data UpDown = UpDown
-    { _udDay  :: !Day
-    , _udUp   :: !Double
-    , _udDown :: !Double
-    }
-    deriving Show
-makeClassy ''UpDown
-
-stocksToUpDown :: Monad m => Conduit Stock m UpDown
-stocksToUpDown =
-    await >>= maybe (return ()) loop
-  where
-    loop today = do
-        myesterday <- await
-        case myesterday of
-            Nothing -> return ()
-            Just yesterday -> do
-                let ud = UpDown
-                        { _udDay = today ^. stockDay
-                        , _udUp = max 0 $ (today ^. stockAdjClose) - (yesterday ^. stockAdjClose)
-                        , _udDown = max 0 $ (yesterday ^. stockAdjClose) - (today ^. stockAdjClose)
-                        }
-                yield ud
-                loop yesterday
-
-rawStockSource :: (MonadResource m, MonadBaseControl IO m, ManagerReader m)
-               => Text -- ^ stock symbol
-               -> Source m ByteString
-rawStockSource symbol = sourceURL $ "http://ichart.finance.yahoo.com/table.csv?s=" ++ unpack symbol
-
-shown :: Show a => IndexPreservingGetter a Text
-shown = to (pack . show)
-
-mapStream :: Monad m => (a -> b) -> Conduit a m b
-mapStream = CL.map
-
 instance PersistEntity Stock

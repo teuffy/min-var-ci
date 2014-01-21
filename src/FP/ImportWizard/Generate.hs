@@ -1,4 +1,4 @@
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards   #-}
@@ -8,12 +8,14 @@
 module FP.ImportWizard.Generate where
 
 import           BasicPrelude
-import qualified Data.Set              as Set
-import qualified Data.Text             as Text
+import           Data.Char                (isAlpha, isAlphaNum, isLower,
+                                           isSpace, isUpper, toLower, toUpper)
+import           Data.CSV.Conduit.Persist (csvInvalidRowToAttribValue,
+                                           csvInvalidRowsAttribName,
+                                           csvNoHeaderRowAttribName)
+import qualified Data.Set                 as Set
+import qualified Data.Text                as Text
 import           Language.Haskell.Exts
-import           Data.Char                    (isAlpha, isAlphaNum, isLower,
-                                               isSpace, isUpper, toLower,
-                                               toUpper)
 
 import           FP.ImportWizard.Types
 
@@ -22,9 +24,9 @@ generateCode iwData =
     [   ("UserTypes.hs", generateTypes iwData)
     ,   ("UserModel.hs", generateModel iwData) ]
 
--- EKB TODO: don't generate if no types needed
 generateTypes :: IWData -> Text
 generateTypes IWData{..} =
+    -- EKB TODO: don't generate if no types needed
     Text.pack $ prettyPrint $ Module
             srcloc
             (ModuleName "UserTypes")
@@ -123,8 +125,9 @@ generateModel IWData{..} =
 
     entityDef :: [Text]
     entityDef = ""
-            -- EKB FIXME add invalid row and 'has headers' attributes
-        :   (Text.pack $ toValidConIdent $ Text.unpack $ iwfdName iwdFormat)
+        :   (   Text.pack (toValidConIdent $ Text.unpack $ iwfdName iwdFormat)
+                ++  " " ++ attrib csvInvalidRowsAttribName (csvInvalidRowToAttribValue iwdInvalid)
+                ++  (if iwsdHasHeaderRow iwdSource then "" else " " ++ csvNoHeaderRowAttribName))
         :   map columnDef iwdTypes
         ++  ["    deriving Show"] -- EKB TODO add any other derived classes?
 
@@ -157,7 +160,7 @@ generateModel IWData{..} =
         IWTextType          ->  Nothing
 
 pragma :: String -> ModulePragma
-pragma = (LanguagePragma srcloc . (: []) . Ident)
+pragma = LanguagePragma srcloc . (: []) . Ident
 
 import_ :: (String, [String], Maybe String) -> ImportDecl
 import_ (modul, spec, alias) = ImportDecl
@@ -175,7 +178,7 @@ attrib :: Text -> Text -> Text
 attrib attrName value
     | isValidIdent (Text.unpack value) = attrName ++ "=" ++ value
         -- EKB TODO is this correct escaping?
-    | otherwise = "\"" ++ attrName ++ "=" ++ Text.replace "\"" "\\\"" (Text.replace "\\" "\\\\" $ value) ++ "\""
+    | otherwise = "\"" ++ attrName ++ "=" ++ Text.replace "\"" "\\\"" (Text.replace "\\" "\\\\" value) ++ "\""
 
 -- EKB TODO test all of the identifier generation/checking thoroughly
 

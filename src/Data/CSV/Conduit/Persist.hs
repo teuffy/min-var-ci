@@ -9,18 +9,23 @@ module Data.CSV.Conduit.Persist
     (   Text
     ,   Day
     ,   TimeOfDay
+    ,   CsvInvalidRow(..)
     ,   mkCsvPersist
     ,   persistCsv
     ,   fromEnumPersistValue
     ,   csvIntoEntities
+    ,   attribValueToCsvInvalidRow
+    ,   csvInvalidRowsAttribName
+    ,   csvNoHeaderRowAttribName
+    ,   csvInvalidRowToAttribValue
     ) where
 
 import           BasicPrelude
 import           Data.CSV.Conduit             (defCSVSettings, intoCSV)
-import           Data.Conduit                 (Conduit, (=$=),MonadThrow)
+import           Data.Conduit                 (Conduit, (=$=), MonadThrow, await)
 import qualified Data.Conduit.List            as CL
 import qualified Data.Map                     as Map
-import           Data.Proxy
+import           Data.Proxy (Proxy)
 import qualified Data.Text                    as Text
 import           Data.Time.Calendar           (Day)
 import           Data.Time.Format             (parseTime)
@@ -49,15 +54,18 @@ fromEnumPersistValue tpv x = case Map.lookup x m of
 csvIntoEntities
     :: (MonadThrow m,PersistEntity entity)
     => Proxy entity -> Conduit ByteString m (Either Text entity)
-csvIntoEntities e = result
-
+csvIntoEntities p =
+    intoCSV defCSVSettings
+        =$= do
+            if hasHeaderRow
+                then void $ await
+                else return ()
+            CL.map csvRowIntoEntity
   where
-    result =
-      -- EKB FIXME handle header row
-      intoCSV defCSVSettings
-      =$= CL.map (csvRowIntoEntity $ entityDef e)
-    csvRowIntoEntity :: PersistEntity entity => EntityDef SqlType -> [Text] -> Either Text entity
-    csvRowIntoEntity entDef row =
+    hasHeaderRow = not $ csvNoHeaderRowAttribName `elem` entityAttrs entDef
+      
+    csvRowIntoEntity :: PersistEntity entity => [Text] -> Either Text entity
+    csvRowIntoEntity row =
         -- EKB FIXME handle mismatch in # of fields
         fromPersistValues $ zipWith toPV (entityFields entDef) row
 
@@ -90,5 +98,29 @@ csvIntoEntities e = result
         Nothing -> getAttribValue name as
         Just s  -> Just s
 
+    entDef :: EntityDef SqlType
+    entDef = entityDef p
+
+attribValueToCsvInvalidRow :: (Eq a, IsString a) => a -> Maybe CsvInvalidRow
+attribValueToCsvInvalidRow v =
+    lookup v $ map (\x -> (csvInvalidRowToAttribValue x, x)) [minBound..maxBound]
+
+csvInvalidRowsAttribName :: Text
+csvInvalidRowsAttribName = "invalidRows"
+
+csvNoHeaderRowAttribName :: Text
+csvNoHeaderRowAttribName = "noHeaderRow"
+    
+csvInvalidRowToAttribValue :: IsString a => CsvInvalidRow -> a
+csvInvalidRowToAttribValue CsvInvalidRowStop     = "stop"
+csvInvalidRowToAttribValue CsvInvalidRowSkip     = "skip"
+csvInvalidRowToAttribValue CsvInvalidRowDefault  = "default"
+
+data CsvInvalidRow
+    =   CsvInvalidRowStop
+    |   CsvInvalidRowSkip
+    |   CsvInvalidRowDefault
+    deriving (Read, Show, Eq, Enum, Bounded)
+    
 --EKB TODO make a variant of derivePersistField that handles conversion
 --  from CSV values instead of using Read/Show

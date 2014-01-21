@@ -61,11 +61,7 @@ getAddSourceR = do
     config = (wizardConfig defaultData iwPageHandler)
         {   wcGetPageTitle = return . Just . iwPageTitle }
         -- EKB FIXME move next to IWData def
-    defaultData = IWData
-        {   iwdFormat   =   IWFormatData "" IWCSVFormat
-        ,   iwdSource   =   IWSourceData True Nothing Nothing Nothing
-        ,   iwdTypes    =   []
-        ,   iwdInvalid  =   IWInvalidStop }
+    defaultData = defaultIwData
 
 postAddSourceR :: Handler Html
 postAddSourceR = getAddSourceR
@@ -79,7 +75,7 @@ postCreateProjectR = do
         FS.createTree tempPath
         runSystem "tar" ["xzf", "data/import-wizard/skel.tgz", "-C", Path.encodeString tempPath]
         forM_ (generateCode data_) $ \(path, code) ->
-            FS.writeFile (tempPath </> path) $ Text.encodeUtf8 $ code
+            FS.writeFile (tempPath </> path) $ Text.encodeUtf8 code
         let gitArgs =
                 [   "--git-dir=" ++ Path.encodeString (tempPath </> ".git")
                 ,   "--work-tree=" ++ Path.encodeString tempPath
