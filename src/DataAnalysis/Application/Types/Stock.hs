@@ -3,6 +3,7 @@
 {-# LANGUAGE DeriveDataTypeable        #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleContexts          #-}
+{-# LANGUAGE GADTs                     #-}
 {-# LANGUAGE MultiParamTypeClasses     #-}
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE QuasiQuotes               #-}
@@ -30,10 +31,97 @@ import           Data.Text                      (Text, pack, unpack)
 import           Data.Time                      (Day)
 import           Data.Vector                    as X (Vector)
 import           DataAnalysis.Application.Types as X
+import           Database.Persist.Sql           (SqlBackend)
 import           Safe                           (readMay)
 import           Yesod                          as X hiding ((.=), (<.))
 
+<<<<<<< HEAD
 mkCsvPersist [persistCsv|
+=======
+data Stock = Stock
+    { _stockDay      :: !Day
+    , _stockOpen     :: !Double
+    , _stockHigh     :: !Double
+    , _stockLow      :: !Double
+    , _stockClose    :: !Double
+    , _stockVolume   :: !Double
+    , _stockAdjClose :: !Double
+    }
+    deriving Show
+makeClassy ''Stock
+
+instance FromMapRow Stock where
+    fromMapRow m = Stock
+        <$> readColumn "Date"
+        <*> readColumn "Open"
+        <*> readColumn "High"
+        <*> readColumn "Low"
+        <*> readColumn "Close"
+        <*> readColumn "Volume"
+        <*> readColumn "Adj Close"
+      where
+        readColumn :: Read a => Text -> Either ParseError a
+        readColumn k =
+            case Map.lookup k m of
+                Nothing -> Left $ ColumnNotFound k
+                Just v ->
+                    case readMay $ unpack v of
+                        Nothing -> Left $ CouldNotReadColumn v
+                        Just x -> Right x
+
+data UpDown = UpDown
+    { _udDay  :: !Day
+    , _udUp   :: !Double
+    , _udDown :: !Double
+    }
+    deriving Show
+makeClassy ''UpDown
+
+stocksToUpDown :: Monad m => Conduit Stock m UpDown
+stocksToUpDown =
+    await >>= maybe (return ()) loop
+  where
+    loop today = do
+        myesterday <- await
+        case myesterday of
+            Nothing -> return ()
+            Just yesterday -> do
+                let ud = UpDown
+                        { _udDay = today ^. stockDay
+                        , _udUp = max 0 $ (today ^. stockAdjClose) - (yesterday ^. stockAdjClose)
+                        , _udDown = max 0 $ (yesterday ^. stockAdjClose) - (today ^. stockAdjClose)
+                        }
+                yield ud
+                loop yesterday
+
+rawStockSource :: (MonadResource m, MonadBaseControl IO m, ManagerReader m)
+               => Text -- ^ stock symbol
+               -> Source m ByteString
+rawStockSource symbol = sourceURL $ "http://ichart.finance.yahoo.com/table.csv?s=" ++ unpack symbol
+
+shown :: Show a => IndexPreservingGetter a Text
+shown = to (pack . show)
+
+mapStream :: Monad m => (a -> b) -> Conduit a m b
+mapStream = CL.map
+
+instance PersistEntity Stock where
+    data EntityField Stock a where
+        StockDay :: EntityField Stock Day
+    type PersistEntityBackend Stock = SqlBackend
+    data Unique Stock
+    fromPersistValues
+        [ PersistDay day
+        , PersistDouble open
+        , PersistDouble high
+        , PersistDouble low
+        , PersistDouble close
+        , PersistDouble volume
+        , PersistDouble adjClose
+        ] = Right $ Stock day open high low close volume adjClose
+    fromPersistValues x = Left $ "Invalid input: " <> pack (show x)
+    entityDef _ = head [persistLowerCase|
+>>>>>>> e1d2d320f8d7e7f5384444e42b62e5f06f5917d9
 Stock
    date            Day "format=%F"
    open            Double
@@ -42,5 +130,16 @@ Stock
    close           Double
    volume          Int
    adjClose        Double
+<<<<<<< HEAD
    deriving Show
 |]
+=======
+|]
+    persistFieldDef = error "persistFieldDef"
+    toPersistFields = error "toPersistFields"
+    persistUniqueToValues = error "persistUniqueToValues"
+    persistUniqueToFieldNames = error "persistUniqueToFieldNames"
+    persistUniqueKeys = error "persistUniqueKeys"
+    persistIdField = error "persistIdField"
+    fieldLens = error "fieldLens"
+>>>>>>> e1d2d320f8d7e7f5384444e42b62e5f06f5917d9
