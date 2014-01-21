@@ -75,8 +75,10 @@ postCreateProjectR = do
     let data_ = fromMaybe (error "Invalid/missing data") $ readMay =<< lookup "data" postFields
     (tempToken, tempPath) <- newTempToken
     liftIO $ do
-        runSystem "git" ["init", Path.encodeString tempPath]
-        FS.writeFile (tempPath </> "main.hs") $ Text.encodeUtf8 $ generateCode data_
+        FS.createTree tempPath
+        runSystem "tar" ["xzf", "data/import-wizard/skel.tgz", "-C", Path.encodeString tempPath]
+        forM_ (generateCode data_) $ \(path, code) ->
+            FS.writeFile (tempPath </> path) $ Text.encodeUtf8 $ code
         let gitArgs =
                 [   "--git-dir=" ++ Path.encodeString (tempPath </> ".git")
                 ,   "--work-tree=" ++ Path.encodeString tempPath

@@ -42,13 +42,15 @@ iwPageHandler oldData IWFormatPage = do
             <*> areq (selectFieldList $ optionsListSum formatTitle)
                     "Format: " (Just iwfdFormat)
     case res of
-        WizardFormProcess (FormSuccess newIWFD@IWFormatData{..}) ->
-            if iwfdFormat == IWCSVFormat
-                then
-                    continueWizard oldData{iwdFormat = newIWFD}
-                else do
-                    setMessage "Only the CSV format is supported for the demo."
-                    renderIWPage formWidget enctype
+        WizardFormProcess (FormSuccess newIWFD@IWFormatData{..})
+            | iwfdFormat /= IWCSVFormat -> do
+                setMessage "Only the CSV format is supported for the demo."
+                renderIWPage formWidget enctype
+            | not (isValidConIdent $ Text.unpack iwfdName) -> do
+                setMessage $ toHtml $ "Name must be a valid Haskell type identifier: " ++ validConIdentDesc ++ "."
+                renderIWPage formWidget enctype
+            | otherwise ->
+                continueWizard oldData{iwdFormat = newIWFD}
         WizardFormContinue (FormSuccess newIWFD) ->
             continueWizard oldData{iwdFormat = newIWFD}
         WizardFormContinue _ ->
@@ -135,8 +137,7 @@ iwPageHandler oldData@IWData{iwdSource = oldIwsd} IWSourcePage = do
                     CL.fold deriveRow []
                 return $ Just $ flip map (zip columnNames columnPossibleTypes) $
                         \(n,(ts,o)) -> IWColumn
-                        -- EKB TODO make column name valid for identifier
-                    {   iwcName     =   n
+                    {   iwcName     =   Text.pack $ toValidVarIdent $ Text.unpack n
                     ,   iwcType     =   headDef IWTextType ts
                     ,   iwcOptional =   o
                     ,   iwcDefault  =   Nothing }
@@ -213,18 +214,21 @@ iwPageHandler oldData@IWData{iwdTypes = oldColumns} IWTypesPage = do
     case res of
         WizardFormProcess (FormSuccess columnForms) -> do
             let newData@IWData{iwdTypes = newColumns} = saveForm columnForms
-                errors = catMaybes $ flip map newColumns $ \col@IWColumn{..} -> case iwcType of
-                    IWEnumType s
-                        |   Set.null s  -> Just (col, "needs at least one enumeration value.")
-                        |   otherwise   -> Nothing
-                    IWDayType "" -> Just (col, "needs a date format.")
-                    IWTimeOfDayType "" -> Just (col, "needs a time format.")
-                    _ -> Nothing
+                errors = catMaybes $ flip map newColumns $ \col@IWColumn{..} ->
+                    if not (isValidVarIdent $ Text.unpack iwcName)
+                        then Just (col, "'s name must be a valid Haskell variable identifier: " ++ validVarIdentDesc ++ ".")
+                        else case iwcType of
+                            IWEnumType s
+                                |   Set.null s  -> Just (col, "needs at least one enumeration value.")
+                                |   otherwise   -> Nothing
+                            IWDayType "" -> Just (col, "needs a date format.")
+                            IWTimeOfDayType "" -> Just (col, "needs a time format.")
+                            _ -> Nothing
             case errors of
                 [] ->
                     continueWizard newData
                 ((IWColumn{..}, msg):_) -> do
-                    setMessage $ "Column " ++ toHtml iwcName ++ " " ++ msg
+                    setMessage $ "Column " ++ toHtml iwcName ++ " " ++ toHtml msg
                     renderIWPage formWidget enctype
         WizardFormContinue (FormSuccess columnForms) ->
             continueWizard $ saveForm columnForms
@@ -353,7 +357,9 @@ iwPageHandler data_ IWReviewPage = do
         then continueWizard data_
         else do
             let widget = toWidget [shamlet|
-                    <pre>#{generateCode data_}
+                    $forall (path, code) <- generateCode data_
+                        <h3>#{Path.encodeString path}
+                        <pre>#{code}
                     |]
             -- EKB TODO need to hard-code `Multipart` when not using runWizardForm?
             renderIWPage widget Multipart
@@ -373,6 +379,12 @@ renderIWPage formWidget enctype = do
                             ^{navWidget}
         |]
     return $ WizardSuccess html
+
+validConIdentDesc :: Text
+validConIdentDesc = "Starts with an upper-case letter, followed by letters, numbers, underscores, and apostrophes (e.g. `MyConstructor`)"
+
+validVarIdentDesc :: Text
+validVarIdentDesc = "Starts with a lower-case letter or underscore, followed by letters, numbers, underscores, and apostrophes (e.g. `myVariable`)"
 
 optionsListSum :: (Bounded a, Enum a) => (a -> Text) -> [(Text, a)]
 optionsListSum n = map (\x -> (n x, x)) [minBound .. maxBound]

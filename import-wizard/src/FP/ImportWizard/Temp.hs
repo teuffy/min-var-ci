@@ -32,16 +32,16 @@ getTempTokenPath (TempToken tokenStr) = liftIO $
 
 _getTempDir :: IO FilePath
 _getTempDir = do
-    -- %XXX "import-wizard" shouldn't be here
+    -- EKB TODO "import-wizard" shouldn't be here
     d <- (</> "import-wizard") . Path.decodeString <$> getTemporaryDirectory
     FS.createTree d
     return d
 
--- %XXX make this type opaque
+-- EKB TODO make this type opaque
 newtype TempToken = TempToken String
     deriving (Read, Show, Eq)
 
 instance PathPiece TempToken where
     toPathPiece (TempToken s) = Text.pack s
-                        -- %XXX should check for valid token
+    -- EKB FIXME should check for valid token
     fromPathPiece = Just . TempToken . Text.unpack

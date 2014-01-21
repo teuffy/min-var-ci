@@ -1,3 +1,7 @@
+{-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# OPTIONS -Wall -Werror -funbox-strict-fields #-}
+
 module FP.ImportWizard.Types where
 
 import BasicPrelude
