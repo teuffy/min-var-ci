@@ -9,18 +9,26 @@
 {-# LANGUAGE TypeFamilies              #-}
 {-# LANGUAGE UndecidableInstances      #-}
 
-module DataAnalysis.Application.Types.Stock where
+module DataAnalysis.Application.Types.Stock
+    ( module DataAnalysis.Application.Types.Stock
+    , module X
+    ) where
 
-import           DataAnalysis.Application.Types
-
-import           Control.Applicative
-import           Control.Lens
-import           Data.ByteString     (ByteString)
-import           Data.Conduit
-import qualified Data.Map            as Map
-import           Data.Text           (Text, unpack)
-import           Data.Time           (Day)
-import           Safe                (readMay)
+import           Control.Applicative            as X
+import           Control.Lens                   as X
+import           Data.ByteString                (ByteString)
+import           Data.Conduit                   as X
+import           Data.Conduit.Analysis          as X
+import           Data.Conduit.List              as X (isolate)
+import qualified Data.Conduit.List              as CL
+import           Data.Default                   as X
+import qualified Data.Map                       as Map
+import           Data.Text                      (Text, pack, unpack)
+import           Data.Time                      (Day)
+import           Data.Vector                    as X (Vector)
+import           DataAnalysis.Application.Types as X
+import           Safe                           (readMay)
+import           Yesod                          as X hiding ((.=), (<.))
 
 data Stock = Stock
     { _stockDay      :: !Day
@@ -82,3 +90,9 @@ rawStockSource :: (MonadResource m, MonadBaseControl IO m, ManagerReader m)
                => Text -- ^ stock symbol
                -> Source m ByteString
 rawStockSource symbol = sourceURL $ "http://ichart.finance.yahoo.com/table.csv?s=" ++ unpack symbol
+
+shown :: Show a => IndexPreservingGetter a Text
+shown = to (pack . show)
+
+mapStream :: Monad m => (a -> b) -> Conduit a m b
+mapStream = CL.map
