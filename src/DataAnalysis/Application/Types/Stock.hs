@@ -23,6 +23,7 @@ import           Data.Conduit.List              as X (isolate)
 import qualified Data.Conduit.List              as CL
 import           Data.Default                   as X
 import qualified Data.Map                       as Map
+import           Data.Monoid                    ((<>))
 import           Data.Text                      (Text, pack, unpack)
 import           Data.Time                      (Day)
 import           Data.Vector                    as X (Vector)
@@ -97,4 +98,36 @@ shown = to (pack . show)
 mapStream :: Monad m => (a -> b) -> Conduit a m b
 mapStream = CL.map
 
-instance PersistEntity Stock
+instance PersistEntity Stock where
+    fromPersistValues
+        [ PersistText day
+        , PersistText open
+        , PersistText high
+        , PersistText low
+        , PersistText close
+        , PersistText volume
+        , PersistText adjClose
+        ] = Stock
+        <$> go day
+        <*> go open
+        <*> go high
+        <*> go low
+        <*> go close
+        <*> go volume
+        <*> go adjClose
+      where
+        go :: Read a => Text -> Either Text a
+        go t =
+            case readMay $ unpack t of
+                Nothing -> Left $ "Invalid input: " <> t
+                Just a -> Right a
+    entityDef _ = head [persistLowerCase|
+Stock
+   date            Day "format=%F"
+   open            Double
+   high            Double
+   low             Double
+   close           Double
+   volume          Int
+   adjClose        Double
+|]
