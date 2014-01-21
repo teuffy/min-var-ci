@@ -17,7 +17,7 @@ module Data.CSV.Conduit.Persist
 
 import           BasicPrelude
 import           Data.CSV.Conduit             (defCSVSettings, intoCSV)
-import           Data.Conduit                 (Conduit, (=$=),MonadThrow)
+import           Data.Conduit                 (Conduit, (=$=), MonadThrow, await)
 import qualified Data.Conduit.List            as CL
 import qualified Data.Map                     as Map
 import           Data.Proxy
@@ -49,15 +49,19 @@ fromEnumPersistValue tpv x = case Map.lookup x m of
 csvIntoEntities
     :: (MonadThrow m,PersistEntity entity)
     => Proxy entity -> Conduit ByteString m (Either Text entity)
-csvIntoEntities e = result
-
-  where
-    result =
+csvIntoEntities p =
       -- EKB FIXME handle header row
-      intoCSV defCSVSettings
-      =$= CL.map (csvRowIntoEntity $ entityDef e)
-    csvRowIntoEntity :: PersistEntity entity => EntityDef SqlType -> [Text] -> Either Text entity
-    csvRowIntoEntity entDef row =
+    intoCSV defCSVSettings
+        =$= do
+            if hasHeaderRow
+                then void $ await
+                else return ()
+            CL.map csvRowIntoEntity
+  where
+    hasHeaderRow = not $ csvNoHeaderRowAttribName `elem` entityAttrs entDef
+      
+    csvRowIntoEntity :: PersistEntity entity => [Text] -> Either Text entity
+    csvRowIntoEntity row =
         -- EKB FIXME handle mismatch in # of fields
         fromPersistValues $ zipWith toPV (entityFields entDef) row
 
@@ -89,6 +93,12 @@ csvIntoEntities e = result
     getAttribValue name (a:as) = case Text.stripPrefix (name ++ "=") a of
         Nothing -> getAttribValue name as
         Just s  -> Just s
+
+    entDef :: EntityDef SqlType
+    entDef = entityDef p
+
+csvNoHeaderRowAttribName :: Text
+csvNoHeaderRowAttribName = "noHeaderRow"
 
 --EKB TODO make a variant of derivePersistField that handles conversion
 --  from CSV values instead of using Read/Show
