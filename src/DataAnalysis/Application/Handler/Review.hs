@@ -32,17 +32,15 @@ getReviewR ident = do
     currentRoute <- getCurrentRoute
     let title = toHtml (formatTime defaultTimeLocale "Import %T" (srcTimestamp source))
     SomeAnalysis{..} <- return (appAnalysis app)
-    ((result, widget), enctype) <- runFormPost (renderDivs analysisForm)
-    start <- liftIO getCurrentTime
+    ((result, widget), enctype) <- runFormGet (renderDivs analysisForm)
     let params =
           case result of
             FormSuccess p -> p
-            _ -> def
+            _ -> analysisDefaultParams
     countRef <- liftIO (newIORef 0)
     start <- liftIO getCurrentTime
     !datapoints <- sourceFile (srcPath source) $= analysisConduit countRef params $$ CL.consume
     rowsProcessed <- liftIO (readIORef countRef)
-    generationTime <- liftIO (fmap (diffUTCTime start) getCurrentTime)
     now <- liftIO getCurrentTime
     defaultLayout $ do
         setTitle title
@@ -50,12 +48,12 @@ getReviewR ident = do
             generationTime = diffUTCTime now start
         $(widgetFileReload def "review")
 
--- | For the parameters form.
-postReviewR :: Text -> Handler Html
-postReviewR = getReviewR
-
 -- | Show a number that's counting something so 1234 is 1,234.
 showCount :: (Show n,Integral n) => n -> String
 showCount = reverse . foldr merge "" . zip ("000,00,00,00"::String) . reverse . show where
   merge (f,c) rest | f == ',' = "," ++ [c] ++ rest
                    | otherwise = [c] ++ rest
+
+-- | Review the imported data, and the analysis upon that data.
+postReviewR :: Text -> Handler Html
+postReviewR = getReviewR

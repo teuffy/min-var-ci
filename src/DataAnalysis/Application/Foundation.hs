@@ -46,6 +46,7 @@ instance ToMarkup (Route App) where
       DatasourcesR -> "Data Sources"
       ExportR {}   -> "Export"
       StaticR {}   -> "Static"
+      StartTimeR{} -> "Start time"
 
 instance Yesod App where
   defaultLayout widget = do
@@ -57,9 +58,6 @@ instance Yesod App where
     case yesod of
       App{appTitle}  ->
         giveUrlRenderer $(hamletFile "templates/default-layout-wrapper.hamlet")
-
-instance RenderMessage App FormMessage where
-  renderMessage _ _ = defaultFormMessage
 
 -- | Add a new source.
 --

@@ -8,4 +8,5 @@ hidden-packages: ''
 version: 1
 extra-packages: ''
 ghc-args: []
-excluded-modules: []
+excluded-modules:
+- Setup.hs

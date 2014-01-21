@@ -1,3 +1,4 @@
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -26,7 +27,6 @@ import           Data.Double.Conversion.Text
 import           Data.IORef
 import qualified Data.Map                             as Map
 import           Data.Maybe
-import           Data.Proxy
 import           Data.Text (Text)
 import           Data.Time
 import           Data.Typeable (Typeable)
@@ -96,12 +96,6 @@ instance (HasManager a, MonadUnsafeIO m, MonadThrow m, MonadBaseControl IO m, Mo
         x <- getYesod
         return $ manager x
 
-class (FromMapRow (AnalysisInput params), HasForm params) => HasAnalysis params where
-    type AnalysisInput params
-    analysisOf :: (MonadResource m, MonadBaseControl IO m, ManagerReader m)
-               => params
-               -> Conduit (AnalysisInput params) m DataPoint
-
 class Default a => HasForm a where
     form :: RenderMessage site FormMessage => AForm (HandlerT site IO) a
 
@@ -113,15 +107,17 @@ data App = App
   , appTitle    :: !Text
   , appAnalysis :: !SomeAnalysis
   , appStatic   :: !Static
+  , appStart    :: !UTCTime
   }
 
+instance RenderMessage App FormMessage where
+    renderMessage _ _ = defaultFormMessage
+
 -- | Some analysis.
-data SomeAnalysis = forall params. HasForm params => SomeAnalysis
-  { analysisProxy   :: !(Proxy params)
-  , analysisForm    :: !(forall site. RenderMessage site FormMessage =>
-                         AForm (HandlerT site IO) params)
-  , analysisConduit :: !(forall site. (HasManager site) =>
-                         IORef Int -> params -> Conduit ByteString (HandlerT site IO) DataPoint)
+data SomeAnalysis = forall params. SomeAnalysis
+  { analysisForm    :: !(AForm (HandlerT App IO) params)
+  , analysisConduit :: !(IORef Int -> params -> Conduit ByteString (HandlerT App IO) DataPoint)
+  , analysisDefaultParams :: !params
   }
 
 -- | An imported data source.
@@ -173,10 +169,10 @@ analysisBSConduitJSON countRef inner =
 fromMapRow' :: (FromMapRow a, MonadThrow m) => MapRow Text -> m a
 fromMapRow' = either monadThrow return . fromMapRow
 
-getSomeAnalysis :: (HasForm params, HasAnalysis params)
-                => Proxy params
+getSomeAnalysis :: (HasForm params, FromMapRow input, Default params)
+                => (params -> Conduit input (HandlerT App IO) DataPoint)
                 -> SomeAnalysis
-getSomeAnalysis pparams = SomeAnalysis
-    pparams
+getSomeAnalysis analysisOf = SomeAnalysis
     form
     (\countRef params -> analysisBSConduitJSON countRef (analysisOf params))
+    def

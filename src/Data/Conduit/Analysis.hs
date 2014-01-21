@@ -147,8 +147,16 @@ stats lens =
         , statsTotal = i L.^. lens
         }
 
-groupsOf :: MonadIO m => Int -> Conduit a m (V.Vector a)
-groupsOf size = do
+-- | Pack n incoming values into a vector and yield it.
+-- Then read the subsequence value in the stream, drop the
+-- first value from the vector, append the new value to the end,
+-- and yield the new vector. Continue until the input stream is empty.
+--
+-- For example, if n is 3, and the input is [1, 2, 3, 4, 5], the yielded
+-- values would be [[1, 2, 3], [2, 3, 4], [3, 4, 5]]
+movingGroupsOf :: MonadIO m => Int -> Conduit a m (a, V.Vector a)
+movingGroupsOf size | size <= 0 = error "movingGroupsOf size must be greater than 0"
+movingGroupsOf size = do
     mv <- liftIO $ M.new size
     fill 0 mv
     return ()
@@ -156,7 +164,7 @@ groupsOf size = do
     fill i mv
         | i == size = do
             v <- liftIO $ V.freeze mv
-            yield v
+            yield (V.head v, v)
             continue v
         | otherwise = do
             mx <- await
@@ -172,7 +180,7 @@ groupsOf size = do
             Nothing -> return ()
             Just x -> do
                 let v' = V.drop 1 v `V.snoc` x
-                yield v'
+                yield (V.head v', v')
                 continue v'
 
 -- | Precondition: vector is non-null
