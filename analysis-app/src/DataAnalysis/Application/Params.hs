@@ -9,6 +9,7 @@
 module DataAnalysis.Application.Params where
 
 import           Control.Applicative
+
 import           Control.Monad.Error ()
 import           Data.Char
 import           Data.Maybe

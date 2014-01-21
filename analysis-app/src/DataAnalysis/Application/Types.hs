@@ -108,6 +108,7 @@ data App = App
   , appTitle    :: !Text
   , appAnalysis :: !SomeAnalysis
   , appStatic   :: !Static
+  , appStart    :: !UTCTime
   }
 
 instance RenderMessage App FormMessage where

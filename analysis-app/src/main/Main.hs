@@ -6,10 +6,12 @@
 -- | Main entry point to my analysis app.
 
 module Main where
+    
 
 import           DataAnalysis.Application.Prelude
 import           DataAnalysis.Application.Types
 import           DataAnalysis.Application.Types.Stock
+
 
 import           Control.Applicative
 import           Control.Lens

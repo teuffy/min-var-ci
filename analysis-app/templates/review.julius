@@ -1,6 +1,21 @@
 $(function(){
     setupChartChoices();
+    setupAutoReload();
 });
+
+// Make the page reload when the server has restarted
+function setupAutoReload() {
+  var lastTime = null;
+  setInterval(function(){
+    $.get('/start-time',function(t){
+        if(lastTime && lastTime !== t) {
+            window.location.reload();
+        } else {
+           lastTime = t;
+        }
+    });
+  },1000);
+}
 
 // Setup the charts list of choices
 function setupChartChoices(){
