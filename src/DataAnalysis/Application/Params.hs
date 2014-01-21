@@ -1,3 +1,4 @@
+{-# LANGUAGE PackageImports #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TemplateHaskell #-}
@@ -10,7 +11,7 @@ module DataAnalysis.Application.Params where
 
 import           Control.Applicative
 
-import           Control.Monad.Error ()
+import           "mtl" Control.Monad.Error ()
 import           Data.Char
 import           Data.Maybe
 import           Data.Monoid

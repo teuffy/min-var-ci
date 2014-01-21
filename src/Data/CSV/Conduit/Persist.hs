@@ -37,7 +37,7 @@ import           Language.Haskell.TH.Syntax   (Dec, Q)
 import           System.Locale                (defaultTimeLocale)
 
 mkCsvPersist :: [EntityDef SqlType] -> Q [Dec]
-mkCsvPersist = mkPersist sqlOnlySettings{mpsGeneric = False}
+mkCsvPersist = mkPersist sqlOnlySettings{mpsGeneric = False, mpsGenerateLenses = True}
 
 persistCsv :: QuasiQuoter
 persistCsv = persistLowerCase
@@ -121,6 +121,6 @@ data CsvInvalidRow
     |   CsvInvalidRowSkip
     |   CsvInvalidRowDefault
     deriving (Read, Show, Eq, Enum, Bounded)
-    
+
 --EKB TODO make a variant of derivePersistField that handles conversion
 --  from CSV values instead of using Read/Show

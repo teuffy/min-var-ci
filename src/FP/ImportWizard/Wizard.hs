@@ -4,6 +4,7 @@
 {-# LANGUAGE NamedFieldPuns        #-}
 {-# LANGUAGE NoImplicitPrelude     #-}
 {-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE PackageImports        #-}
 {-# LANGUAGE QuasiQuotes           #-}
 {-# LANGUAGE RankNTypes            #-}
 {-# LANGUAGE RecordWildCards       #-}
@@ -12,8 +13,8 @@
 module FP.ImportWizard.Wizard where
 
 import           BasicPrelude
-import           Control.Monad.Reader       (ReaderT, ask, runReaderT)
-import           Control.Monad.State.Strict (StateT, get, put, runStateT)
+import           "mtl" Control.Monad.Reader       (ReaderT, ask, runReaderT)
+import           "mtl" Control.Monad.State.Strict (StateT, get, put, runStateT)
 import qualified Data.Text                  as Text
 import           Safe                       (readMay)
 import           Yesod                      hiding (get)

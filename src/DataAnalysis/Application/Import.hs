@@ -32,7 +32,7 @@ import           Safe                                 (readMay)
 import           Yesod                                as X hiding ((.=), (<.))
 
 data UpDown = UpDown
-    { _udDay  :: !Day
+    { _udDate :: !Day
     , _udUp   :: !Double
     , _udDown :: !Double
     }
@@ -49,7 +49,7 @@ stocksToUpDown =
             Nothing -> return ()
             Just yesterday -> do
                 let ud = UpDown
-                        { _udDay = today ^. stockDay
+                        { _udDate = today ^. stockDate
                         , _udUp = max 0 $ (today ^. stockAdjClose) - (yesterday ^. stockAdjClose)
                         , _udDown = max 0 $ (yesterday ^. stockAdjClose) - (today ^. stockAdjClose)
                         }
