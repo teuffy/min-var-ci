@@ -19,20 +19,19 @@ import           FP.ImportWizard.Types
 
 generateCode :: IWData -> [(FilePath, Text)]
 generateCode iwData =
-    [   ("Types.hs", generateTypes iwData)
-    ,   ("Model.hs", generateModel iwData)
-    ,   ("Main.hs" , generateMain  iwData) ]
+    [   ("UserTypes.hs", generateTypes iwData)
+    ,   ("UserModel.hs", generateModel iwData) ]
 
 -- EKB TODO: don't generate if no types needed
 generateTypes :: IWData -> Text
 generateTypes IWData{..} =
     Text.pack $ prettyPrint $ Module
             srcloc
-            (ModuleName "Types")
+            (ModuleName "UserTypes")
             (map pragma ["OverloadedStrings"])
             Nothing
             Nothing
-            (map import_ [("Data.CSV.Conduit.Persist", [])])
+            (map import_ [("Data.CSV.Conduit.Persist", [], Nothing)])
             (concatMap columnDecls iwdTypes)
 
   where
@@ -101,15 +100,15 @@ generateModel :: IWData -> Text
 generateModel IWData{..} =
     Text.pack $ prettyPrint $ Module
             srcloc
-            (ModuleName "Model")
+            (ModuleName "UserModel")
             (map pragma ["GADTs", "OverloadedStrings", "QuasiQuotes", "TemplateHaskell", "TypeFamilies"])
             Nothing
             (Just
-                [   EModuleContents (ModuleName "Model")
-                ,   EModuleContents (ModuleName "Types") ])
+                [   EModuleContents (ModuleName "UserModel")
+                ,   EModuleContents (ModuleName "UserTypes") ])
             (map import_
-                [   ("Data.CSV.Conduit.Persist" , [])
-                ,   ("Types"                    , []) ])
+                [   ("Data.CSV.Conduit.Persist" , [], Nothing)
+                ,   ("UserTypes"                , [], Nothing) ])
             decls
 
   where
@@ -127,7 +126,7 @@ generateModel IWData{..} =
             -- EKB FIXME add invalid row and 'has headers' attributes
         :   (Text.pack $ toValidConIdent $ Text.unpack $ iwfdName iwdFormat)
         :   map columnDef iwdTypes
-        ++  ["    deriving Show"] -- EKB FIXME add any other derived classes?
+        ++  ["    deriving Show"] -- EKB TODO add any other derived classes?
 
     columnDef :: IWColumn -> Text
     columnDef col@IWColumn{..} = "    "
@@ -157,66 +156,14 @@ generateModel IWData{..} =
         IWTimeOfDayType f   ->  Just $ attrib "format" f
         IWTextType          ->  Nothing
 
-generateMain :: IWData -> Text
-generateMain IWData{..} =
-    Text.pack $ prettyPrint $ Module
-     srcloc
-     (ModuleName "Main")
-      (map pragma ["OverloadedStrings"])
-     Nothing
-     Nothing
-     (map import_
-                [   ("Control.Monad.Trans.Resource" , ["runResourceT"])
-                ,   ("Data.Conduit"                 , ["($$)", "($=)"])
-                ,   ("Data.Conduit.Binary"          , ["sourceFile"])
-                ,   ("Data.Conduit.List"            , ["consume"])
-                ,   ("Data.CSV.Conduit.Persist"     , [])
-                ,   ("Model"                        , []) ])
-     [ TypeSig
-         srcloc
-         [ Ident "main" ]
-         (TyApp (TyCon (UnQual (Ident "IO"))) (TyCon (Special UnitCon)))
-     , PatBind
-         srcloc
-         (PVar (Ident "main"))
-         Nothing
-         (UnGuardedRhs
-            (Do
-               [ Generator
-                   srcloc
-                   (PVar (Ident "o"))
-                   (InfixApp
-                      (Var (UnQual (Ident "runResourceT")))
-                      (QVarOp (UnQual (Symbol "$")))
-                      (InfixApp
-                         (InfixApp
-                            (App
-                               (Var (UnQual (Ident "sourceFile"))) (Lit (String "input.csv")))
-                            (QVarOp (UnQual (Symbol "$=")))
-                            (App
-                               (Var (UnQual (Ident "csvIntoEntities")))
-                               (Paren
-                                  (ExpTypeSig
-                                     srcloc
-                                     (List [])
-                                     (TyList (TyCon (UnQual (Ident $ toValidConIdent $ Text.unpack $ iwfdName iwdFormat))))))))
-                         (QVarOp (UnQual (Symbol "$$")))
-                         (Var (UnQual (Ident "consume")))))
-               , Qualifier
-                   (App (Var (UnQual (Ident "print"))) (Var (UnQual (Ident "o"))))
-               ]))
-         (BDecls [])
-     ]
-
-        
 pragma :: String -> ModulePragma
 pragma = (LanguagePragma srcloc . (: []) . Ident)
 
-import_ :: (String, [String]) -> ImportDecl
-import_ (modul, spec) = ImportDecl
+import_ :: (String, [String], Maybe String) -> ImportDecl
+import_ (modul, spec, alias) = ImportDecl
     srcloc
     (ModuleName modul)
-    False False Nothing Nothing
+    False False Nothing (ModuleName <$> alias)
     (case spec of
         [] -> Nothing
         xs -> Just (False, map (IAbs . Ident) xs ))
@@ -227,7 +174,7 @@ srcloc = error "SrcLoc"
 attrib :: Text -> Text -> Text
 attrib attrName value
     | isValidIdent (Text.unpack value) = attrName ++ "=" ++ value
-        -- EKB TODO is this strictly correct?
+        -- EKB TODO is this correct escaping?
     | otherwise = "\"" ++ attrName ++ "=" ++ Text.replace "\"" "\\\"" (Text.replace "\\" "\\\\" $ value) ++ "\""
 
 -- EKB TODO test all of the identifier generation/checking thoroughly
