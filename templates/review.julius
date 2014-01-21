@@ -68,15 +68,15 @@ function makeChart(type,data){
 		},
 		xaxis: {
 		    mode: mode,
-		    tickLength: 0,
-                    show: groupList < 20
+		    tickLength: 0/*,
+                    show: groupList < 20*/
 		}
 	    });
         } else if (type === 'Line') {
 	    $.plot("#placeholder", groupList,{
                 xaxis: {
-                    mode: mode,
-                    show: groupList < 20
+                    mode: mode/*,
+                    show: groupList < 20*/
                 }
             });
         } else if (type == 'Pie') {

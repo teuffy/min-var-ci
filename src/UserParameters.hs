@@ -24,4 +24,4 @@ instance HasForm RsiParams where
 instance Default RsiParams where
   def = RsiParams 14
                   0.6
-                  20
+                  16
