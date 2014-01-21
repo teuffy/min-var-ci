@@ -100,27 +100,15 @@ mapStream = CL.map
 
 instance PersistEntity Stock where
     fromPersistValues
-        [ PersistText day
-        , PersistText open
-        , PersistText high
-        , PersistText low
-        , PersistText close
-        , PersistText volume
-        , PersistText adjClose
-        ] = Stock
-        <$> go day
-        <*> go open
-        <*> go high
-        <*> go low
-        <*> go close
-        <*> go volume
-        <*> go adjClose
-      where
-        go :: Read a => Text -> Either Text a
-        go t =
-            case readMay $ unpack t of
-                Nothing -> Left $ "Invalid input: " <> t
-                Just a -> Right a
+        [ PersistDay day
+        , PersistDouble open
+        , PersistDouble high
+        , PersistDouble low
+        , PersistDouble close
+        , PersistDouble volume
+        , PersistDouble adjClose
+        ] = Right $ Stock day open high low close volume adjClose
+    fromPersistValues x = Left $ "Invalid input: " <> pack (show x)
     entityDef _ = head [persistLowerCase|
 Stock
    date            Day "format=%F"
@@ -128,6 +116,6 @@ Stock
    high            Double
    low             Double
    close           Double
-   volume          Int
+   volume          Double
    adjClose        Double
 |]
