@@ -37,7 +37,7 @@ getReviewR ident = do
     let params =
           case result of
             FormSuccess p -> p
-            _ -> def
+            _ -> analysisDefaultParams
     countRef <- liftIO (newIORef 0)
     start <- liftIO getCurrentTime
     !datapoints <- sourceFile (srcPath source) $= analysisConduit countRef params $$ CL.consume
