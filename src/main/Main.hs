@@ -6,7 +6,7 @@
 -- | Main entry point to my analysis app.
 
 module Main where
-    
+
 
 import           DataAnalysis.Application.Prelude
 import           DataAnalysis.Application.Types

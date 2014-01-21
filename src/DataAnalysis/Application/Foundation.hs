@@ -46,6 +46,7 @@ instance ToMarkup (Route App) where
       DatasourcesR -> "Data Sources"
       ExportR {}   -> "Export"
       StaticR {}   -> "Static"
+      StartTimeR{} -> "Start time"
 
 instance Yesod App where
   defaultLayout widget = do

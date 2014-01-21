@@ -33,7 +33,6 @@ getReviewR ident = do
     let title = toHtml (formatTime defaultTimeLocale "Import %T" (srcTimestamp source))
     SomeAnalysis{..} <- return (appAnalysis app)
     ((result, widget), enctype) <- runFormGet (renderDivs analysisForm)
-    start <- liftIO getCurrentTime
     let params =
           case result of
             FormSuccess p -> p
@@ -42,7 +41,6 @@ getReviewR ident = do
     start <- liftIO getCurrentTime
     !datapoints <- sourceFile (srcPath source) $= analysisConduit countRef params $$ CL.consume
     rowsProcessed <- liftIO (readIORef countRef)
-    generationTime <- liftIO (fmap (diffUTCTime start) getCurrentTime)
     now <- liftIO getCurrentTime
     defaultLayout $ do
         setTitle title

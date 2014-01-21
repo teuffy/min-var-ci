@@ -9,9 +9,7 @@ import           Data.Conduit
 import qualified Data.Conduit.List                   as CL
 import           DataAnalysis.Application.Foundation
 import           DataAnalysis.Application.Types
-import           System.Locale
 import           Yesod
-import           Yesod.Default.Util
 
 -- | Return when the server was started.
 getStartTimeR :: Handler TypedContent

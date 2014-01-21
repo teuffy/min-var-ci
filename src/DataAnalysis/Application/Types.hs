@@ -27,7 +27,6 @@ import           Data.Double.Conversion.Text
 import           Data.IORef
 import qualified Data.Map                             as Map
 import           Data.Maybe
-import           Data.Proxy
 import           Data.Text (Text)
 import           Data.Time
 import           Data.Typeable (Typeable)

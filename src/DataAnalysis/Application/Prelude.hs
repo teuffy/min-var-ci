@@ -8,7 +8,6 @@ module DataAnalysis.Application.Prelude
   (runAnalysisApp)
   where
 
-import Data.Proxy (Proxy)
 import Data.Text (Text)
 import Yesod
 import Data.Time
@@ -18,11 +17,11 @@ import Data.Conduit (Conduit)
 import DataAnalysis.Application.Types
 import DataAnalysis.Application.Dispatch ()
 
-#if MIN_VERSION_conduit(2, 0, 0)
-import Network.HTTP.Client (defaultManagerSettings, newManager)
-#else
+#if FPHC
 import Network.HTTP.Conduit (Manager, newManager, def)
 defaultManagerSettings = def
+#else
+import Network.HTTP.Client (defaultManagerSettings, newManager)
 #endif
 
 -- | Run the analysis web app.
