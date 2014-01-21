@@ -16,7 +16,7 @@ getImportR = do
     (formWidget, formEncType) <- generateFormPost uploadForm
     currentRoute <- getCurrentRoute
     defaultLayout $ do
-        setTitle "!!File Processor blah some change here"
+        setTitle "File Processor"
         $(widgetFileReload def "import")
 
 -- | Add the given file as a data source and redirect to the new

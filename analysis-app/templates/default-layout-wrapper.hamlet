@@ -1,7 +1,7 @@
 $doctype 5
 <html>
   <head>
-    <title>hello
+    <title>#{pageTitle pc}
     <script src="//code.jquery.com/jquery-1.10.2.min.js"></script>
     <link rel="stylesheet" type="text/css"
           href="//netdna.bootstrapcdn.com/twitter-bootstrap/2.3.2/css/bootstrap-combined.min.css">
@@ -34,8 +34,7 @@ $doctype 5
                       <a href=@{route}>#{route}
     <div class="container">
       <ul class="breadcrumb">
-        <li class="active"> 
-          test !!!
+        <li class="active">
           #{appTitle}
       ^{pageBody pc}
     <script src="//netdna.bootstrapcdn.com/twitter-bootstrap/2.3.2/js/bootstrap.min.js"></script>

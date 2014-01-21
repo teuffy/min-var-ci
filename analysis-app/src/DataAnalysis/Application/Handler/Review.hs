@@ -30,7 +30,7 @@ getReviewR ident = do
     app <- getYesod
     source <- getById ident
     currentRoute <- getCurrentRoute
-    let title = toHtml (formatTime defaultTimeLocale "E: Import %T" (srcTimestamp source))
+    let title = toHtml (formatTime defaultTimeLocale "Import %T" (srcTimestamp source))
     SomeAnalysis{..} <- return (appAnalysis app)
     ((result, widget), enctype) <- runFormGet (renderDivs analysisForm)
     start <- liftIO getCurrentTime
