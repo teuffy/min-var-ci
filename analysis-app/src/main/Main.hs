@@ -26,34 +26,18 @@ import           Yesod
 data RsiParams = RsiParams
     { rpSize  :: !Int -- ^ RSI grouping size
     , rpAlpha :: !Double -- ^ alpha for exponential moving average
+    , rpBars  :: !Int -- ^ number of bars to display
     }
 
 -- | Implement an analysis for the RsiParams type.
 instance HasAnalysis RsiParams where
     type AnalysisInput RsiParams = Stock
 
-    analysisOf (RsiParams size alpha) =
+    analysisOf (RsiParams size alpha bars) =
             stocksToUpDown
         =$= CA.groupsOf size -- FIXME: need a better name, movingGroupsOf?
         =$= CL.map (calculateRSI alpha)
-
--- | Make a form for the parameters, uses the 'Default' instance for
--- the default values.
-instance HasForm RsiParams where
-    form = RsiParams
-        <$> areq intField "Grouping size" (Just (rpSize def))
-        <*> areq doubleField "Alpha (for exponential moving average)" (Just (rpAlpha def))
-
--- | Default values for the parameters.
-instance Default RsiParams where
-  def = RsiParams 14
-                  0.6
-
--- | Start the analysis server with the following configuration.
-main :: IO ()
-main =
-  runAnalysisApp "RSI analysis"
-                 (Proxy :: Proxy RsiParams)
+        =$= CL.isolate bars
 
 -- | Calculate the RSI value.
 calculateRSI
@@ -66,3 +50,23 @@ calculateRSI alpha v =
     rs = CA.exponentialMovingAverage udUp   alpha v
        / CA.exponentialMovingAverage udDown alpha v
     rsi' = 100 - (100 / (1 + rs))
+
+-- | Make a form for the parameters, uses the 'Default' instance for
+-- the default values.
+instance HasForm RsiParams where
+    form = RsiParams
+        <$> areq intField "Grouping size" (Just (rpSize def))
+        <*> areq doubleField "Alpha (for exponential moving average)" (Just (rpAlpha def))
+        <*> areq intField "Number of bars (up to 20 for a readable graph)" (Just (rpBars def))
+
+-- | Default values for the parameters.
+instance Default RsiParams where
+  def = RsiParams 14
+                  0.6
+                  20
+
+-- | Start the analysis server with the following configuration.
+main :: IO ()
+main =
+  runAnalysisApp "RSI analysis"
+                 (Proxy :: Proxy RsiParams)
