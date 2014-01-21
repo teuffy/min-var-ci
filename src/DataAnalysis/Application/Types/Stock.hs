@@ -96,3 +96,5 @@ shown = to (pack . show)
 
 mapStream :: Monad m => (a -> b) -> Conduit a m b
 mapStream = CL.map
+
+instance PersistEntity Stock

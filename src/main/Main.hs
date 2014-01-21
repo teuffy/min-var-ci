@@ -1,7 +1,4 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RecordWildCards   #-}
-{-# LANGUAGE TypeFamilies      #-}
-{-# OPTIONS -fno-warn-orphans #-}
 
 -- | Main entry point to my analysis app.
 
