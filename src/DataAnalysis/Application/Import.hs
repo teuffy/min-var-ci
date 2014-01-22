@@ -14,6 +14,8 @@ module DataAnalysis.Application.Import
     , module X
     ) where
 
+import           Control.Applicative as X
+import           Control.Lens as X
 import           Data.ByteString                      (ByteString)
 import           Data.Conduit                         as X
 import           Data.Conduit.Analysis                as X
