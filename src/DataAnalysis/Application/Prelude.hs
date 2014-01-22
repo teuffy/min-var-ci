@@ -17,7 +17,11 @@ import Yesod.Static
 import DataAnalysis.Application.Types
 import DataAnalysis.Application.Dispatch ()
 
+#if FPHC
 import Network.HTTP.Client (defaultManagerSettings, newManager)
+#else
+import Network.HTTP.Client (defaultManagerSettings, newManager)
+#endif
 
 -- | Run the analysis web app.
 runAnalysisApp :: (PersistEntity b,HasForm params)
