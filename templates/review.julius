@@ -5,16 +5,16 @@ $(function(){
 
 // Make the page reload when the server has restarted
 function setupAutoReload() {
-  var lastTime = null;
-  setInterval(function(){
-    $.get('/start-time',function(t){
-        if(lastTime && lastTime !== t) {
-            window.location.reload();
-        } else {
-           lastTime = t;
-        }
-    });
-  },1000);
+    var lastTime = null;
+    setInterval(function(){
+        $.get('/start-time',function(t){
+            if(lastTime && lastTime !== t) {
+                window.location.reload();
+            } else {
+                lastTime = t;
+            }
+        });
+    },1000);
 }
 
 // Setup the charts list of choices
@@ -58,7 +58,7 @@ function makeChart(type,data){
             groupList.push(groups[group]);
         }
         if (type === 'Bar') {
-	    $.plot("#placeholder", groupList, {
+            $.plot("#placeholder", groupList, {
 		series: {
 		    bars: {
 			show: true,
@@ -68,15 +68,15 @@ function makeChart(type,data){
 		},
 		xaxis: {
 		    mode: mode,
-		    tickLength: 0/*,
-                    show: groupList < 20*/
+		    tickLength: 0,
+                    show: groupList[0].length <= 20
 		}
 	    });
         } else if (type === 'Line') {
 	    $.plot("#placeholder", groupList,{
                 xaxis: {
-                    mode: mode/*,
-                    show: groupList < 20*/
+                    mode: mode,
+                    show: groupList[0].length <= 20
                 }
             });
         } else if (type == 'Pie') {
@@ -86,7 +86,6 @@ function makeChart(type,data){
                               data: groupList[0][i][1]
                             });
             }
-            console.log(series);
             $.plot('#placeholder', series, {
                 series: {
                     pie: {
@@ -95,7 +94,7 @@ function makeChart(type,data){
                     }
                 },
                 legend: {
-                    show: series.length < 20
+                    show: series.length <= 20
                 }
             });
         }
