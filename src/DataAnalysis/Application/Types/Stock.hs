@@ -1,6 +1,6 @@
-{-# LANGUAGE GADTs                     #-}
 {-# LANGUAGE ConstraintKinds           #-}
 {-# LANGUAGE DeriveDataTypeable        #-}
+{-# LANGUAGE EmptyDataDecls            #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE GADTs                     #-}
@@ -16,24 +16,17 @@ module DataAnalysis.Application.Types.Stock
     , module X
     ) where
 
-import           Control.Applicative            as X
-import           Control.Lens                   as X
-import           Data.ByteString                (ByteString)
-import           Data.CSV.Conduit.Persist       (mkCsvPersist, persistCsv)
-import           Data.Conduit                   as X
-import           Data.Conduit.Analysis          as X
-import           Data.Conduit.List              as X (isolate)
-import qualified Data.Conduit.List              as CL
-import           Data.Default                   as X
-import qualified Data.Map                       as Map
-import           Data.Monoid                    ((<>))
-import           Data.Text                      (Text, pack, unpack)
-import           Data.Time                      (Day)
-import           Data.Vector                    as X (Vector)
-import           DataAnalysis.Application.Types as X
-import           Database.Persist.Sql           (SqlBackend)
-import           Safe                           (readMay)
-import           Yesod                          as X hiding ((.=), (<.))
+import Control.Applicative            as X
+import Control.Lens                   as X
+import Data.CSV.Conduit.Persist       (mkCsvPersist, persistCsv)
+import Data.Conduit                   as X
+import Data.Conduit.Analysis          as X
+import Data.Conduit.List              as X (isolate)
+import Data.Default                   as X
+import Data.Time                      (Day)
+import Data.Vector                    as X (Vector)
+import DataAnalysis.Application.Types as X
+import Yesod                          as X hiding ((.=), (<.))
 
 mkCsvPersist [persistCsv|
 Stock
