@@ -6,7 +6,7 @@
 
 cd $(dirname $0)/..
 s=$(pwd)
-t=$(mktemp -dt data-analysis-demo)
+t=$(mktemp -dt data-analysis-demo.XXXXXX)
 
 git clone . $t/skel
 cd $t/skel
