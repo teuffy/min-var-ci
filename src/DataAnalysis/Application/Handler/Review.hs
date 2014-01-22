@@ -1,3 +1,4 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -8,6 +9,7 @@
 
 module DataAnalysis.Application.Handler.Review where
 
+import           Control.Applicative
 import           Data.Aeson
 import           Data.Conduit
 import           Data.Conduit.Binary (sourceFile)
@@ -32,10 +34,10 @@ getReviewR ident = do
     currentRoute <- getCurrentRoute
     let title = toHtml (formatTime defaultTimeLocale "Import %T" (srcTimestamp source))
     SomeAnalysis{..} <- return (appAnalysis app)
-    ((result, widget), enctype) <- runFormGet (renderDivs analysisForm)
+    ((result, widget), enctype) <- runFormGet (renderDivs ((,) <$> analysisForm <*> graphType))
     let params =
           case result of
-            FormSuccess p -> p
+            FormSuccess (p,_::Text) -> p
             _ -> analysisDefaultParams
     countRef <- liftIO (newIORef 0)
     start <- liftIO getCurrentTime
@@ -47,6 +49,11 @@ getReviewR ident = do
         let datapointsJson = toHtml (decodeUtf8 (encode (take 100 datapoints)))
             generationTime = diffUTCTime now start
         $(widgetFileReload def "review")
+  where graphType =
+          areq hiddenField
+               "" {fsName = l,fsId = l}
+               (Just "Bar")
+          where l = Just "graph_type"
 
 -- | Show a number that's counting something so 1234 is 1,234.
 showCount :: (Show n,Integral n) => n -> String

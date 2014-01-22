@@ -31,12 +31,15 @@ function setupChartChoices(){
     choice('Bar',makeChart('Bar',data));
     choice('Line',makeChart('Line',data));
     choice('Pie',makeChart('Pie',data));
-    makeChart('Bar',data)();
+    makeChart($('#graph_type').val(),data,true)();
 }
 
 // Make a chart of the given type
-function makeChart(type,data){
+function makeChart(type,data,first){
     return function(e){
+        $('#graph_type').val(type);
+        if(!first)
+            $('form').submit();
         var groups = Object.create(null);
         var mode = undefined;
         for (var i = 0, len = data.length; i < len; i++) {
