@@ -38,8 +38,6 @@ function setupChartChoices(){
 function makeChart(type,data,first){
     return function(e){
         $('#graph_type').val(type);
-        if(!first)
-            $('form').submit();
         var groups = Object.create(null);
         var mode = undefined;
         for (var i = 0, len = data.length; i < len; i++) {
