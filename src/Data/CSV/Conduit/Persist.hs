@@ -5,6 +5,21 @@
 
 -- | Persistent support for CSV data.
 
+{-EKB TODO
+
+Review notes from @snoyberg:
+
+* fromEnumPersistValue is now, high-level code. However, it's not going to be as efficient as possible, since the lookup map is going to be recomputed each time the function is called. Even though it's a bit uglier, the highest efficiency will probably come from:
+    * Creating a CAF[1] with the lookup mapping.
+    * Specializing to the case where the lookup key is a `Text`.
+    * Switch to a HashMap instead of a Map.
+    * If we were really going to go crazy on performance, using some kind of Text trie would possibly be more efficient.
+    * I *don't* think that this kind of optimization is at all a priority, and definitely not necessary for the demo, but I thought now's a good time to start going over optimization techniques like this.
+* csvRowIntoEntity assumes that the incoming field order is the same as the original field order. While this seems to be the only option in the case of a CSV file without headers, a CSV file with headers should instead respect them, and deal with rearranged columns appropriately.
+* Another efficiency comment: it looks to me like a Day field will currently require parsing all of the attributes for each and every row traversal, as opposed to caching that lookup from the first call. Rearranging the code a bit should address that problem; in particular, you'd need to do something like `let fieldParsers = map toFieldParsers $ entityFields entDef` and then zip *that* with the row.
+    * Similarly, when implementing the header-respecting lookup, the best thing would be to look at the headers once and rearrange the order of those field parsers to match the format of the CSV file. That should also help simplify the code for dealing with both the case of headers and non-headers: if there's no header, simply don't perform the rearranging.
+-}
+
 module Data.CSV.Conduit.Persist
     (   Text
     ,   Day
