@@ -9,6 +9,8 @@
 {-# LANGUAGE TypeFamilies              #-}
 {-# LANGUAGE UndecidableInstances      #-}
 
+{-# OPTIONS -fno-warn-unused-imports #-}
+
 module DataAnalysis.Application.Import
     ( module DataAnalysis.Application.Import
     , module X
