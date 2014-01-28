@@ -7,7 +7,6 @@
 module DataAnalysis.Application.Handler.Export where
 
 import           Blaze.ByteString.Builder
-import           Control.Monad.Fix
 import           Data.CSV.Conduit
 import           Data.Conduit
 import qualified Data.Conduit.List as CL
@@ -72,13 +71,7 @@ toXmlRows :: Monad m => (row -> Conduit row m Event) -> Conduit row m Event
 toXmlRows renderRow =
   do yield EventBeginDocument
      with "rows"
-          (fix (\loop ->
-                  do mrow <- await
-                     case mrow of
-                       Nothing -> return ()
-                       Just row ->
-                         do with "row" (renderRow row)
-                            loop))
+          (awaitForever (with "row" . renderRow))
      yield EventEndDocument
 
 -- | With opening/closing tags for the given name, render the inner
