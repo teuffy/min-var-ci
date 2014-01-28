@@ -26,6 +26,7 @@ library
                      DataAnalysis.Application.Types
                      DataAnalysis.Application.Dispatch
                      DataAnalysis.Application.Types.Stock
+                     DataAnalysis.Application.Analyze
                      Data.Conduit.Analysis
                      Data.CSV.Conduit.Persist
   build-depends:     basic-prelude >= 0.3.6.0,
