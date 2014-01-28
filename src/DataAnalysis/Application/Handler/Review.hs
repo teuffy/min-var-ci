@@ -12,7 +12,6 @@ module DataAnalysis.Application.Handler.Review where
 import           Control.Applicative
 import           Data.Aeson
 import           Data.Conduit
-import           Data.Conduit.Binary (sourceFile)
 import qualified Data.Conduit.List as CL
 import           Data.Default
 import           Data.IORef
@@ -24,6 +23,7 @@ import           System.Locale
 import           Yesod
 import           Yesod.Default.Util
 
+import           DataAnalysis.Application.Analyze
 import           DataAnalysis.Application.Types
 
 -- | Review the imported data, and the analysis upon that data.
@@ -41,8 +41,8 @@ getReviewR ident = do
             _ -> analysisDefaultParams
     countRef <- liftIO (newIORef 0)
     start <- liftIO getCurrentTime
-    !datapoints <- sourceFile (srcPath source) $= analysisConduit countRef params $$ CL.consume
-    rowsProcessed <- liftIO (readIORef countRef)
+    !datapoints <- analysisSource ident >>= ($$ CL.consume)
+    rowsProcessed :: Int <- liftIO (readIORef countRef)
     now <- liftIO getCurrentTime
     defaultLayout $ do
         setTitle title
