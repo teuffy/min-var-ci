@@ -16,7 +16,7 @@
         <span .caret>
       <ul .dropdown-menu>
         <li>
-          <a href=@{ExportR ident}>CSV
+          <a href=@{ExportR ident CsvData}>CSV
 
 <div .row>
   <div .span12 #chart-span>

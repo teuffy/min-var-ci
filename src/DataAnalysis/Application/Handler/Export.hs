@@ -7,6 +7,7 @@
 module DataAnalysis.Application.Handler.Export where
 
 import           Blaze.ByteString.Builder.ByteString
+import           Data.ByteString (ByteString)
 import           Data.CSV.Conduit
 import           Data.Conduit
 
@@ -22,17 +23,24 @@ import           DataAnalysis.Application.Analyze
 import           DataAnalysis.Application.Types
 
 -- | Export the data source to various data formats.
-getExportR :: Text -> Handler TypedContent
-getExportR ident = do
-    addHeader "content-disposition" $ T.concat
-        [ "attachment; filename=\""
-        , T.pack (show ident) <> "-export"
-        , ".csv\""
-        ]
+getExportR :: Text -> ExportType -> Handler TypedContent
+getExportR ident typ = do
     source <- analysisSource ident
-    respondSource "text/csv"
-                  (source
-                   $= CL.map toMapRow
-                   $= (writeHeaders settings >> fromCSV settings)
-                   $= CL.map (Chunk . fromByteString))
+    case typ of
+      CsvData ->
+        attachmentFromSource
+          (T.pack (show ident) <> "-export" <> ".csv")
+          (source
+           $= CL.map toMapRow
+           $= (writeHeaders settings >> fromCSV settings))
   where settings = def
+
+-- | Output an attachment from a source.
+attachmentFromSource :: Text
+                     -> Source (HandlerT site IO) ByteString
+                     -> HandlerT site IO TypedContent
+attachmentFromSource filename source = do
+  addHeader "content-disposition"
+            ("attachment; filename=" <> T.pack (show (T.unpack filename)))
+  respondSource "text/csv"
+                (source $= CL.map (Chunk . fromByteString))
