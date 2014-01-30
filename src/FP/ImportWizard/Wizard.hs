@@ -346,12 +346,19 @@ getWizardNavigationsWidget
     => WizardT data_ page handler result Html
 getWizardNavigationsWidget = do
     -- EKB TODO improve
-    ws <- getWizardStateWidget
-    w1 <- getWizardNavigationWidget WizardCancel
-    w2 <- getWizardNavigationWidget WizardBack
-    w3 <- getWizardNavigationWidget WizardNext
-    w4 <- getWizardNavigationWidget WizardFinish
-    return (ws >> w1 >> w2 >> w3 >> w4)
+    state <- getWizardStateWidget
+    cancel <- getWizardNavigationWidget WizardCancel
+    back <- getWizardNavigationWidget WizardBack
+    next <- getWizardNavigationWidget WizardNext
+    finish <- getWizardNavigationWidget WizardFinish
+    return $ [shamlet|
+        ^{state}
+        <span style="float:right">
+            ^{next}
+            ^{finish}
+        ^{cancel}
+        ^{back}
+        &nbsp; |]
 
 getWizardStateWidget
     ::  (MonadHandler handler, WizardData data_, WizardPage page)
