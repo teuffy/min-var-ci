@@ -26,9 +26,12 @@ library
                      DataAnalysis.Application.Types
                      DataAnalysis.Application.Dispatch
                      DataAnalysis.Application.Types.Stock
+                     DataAnalysis.Application.Analyze
                      Data.Conduit.Analysis
                      Data.CSV.Conduit.Persist
-  build-depends:     basic-prelude >= 0.3.6.0,
+  build-depends:     xml-conduit >= 1.1.0.0,
+                     xml-types >= 0.3.4,
+                     basic-prelude >= 0.3.6.0,
                      persistent >= 2.0.0,
                      persistent-template >= 2.0.0,
                      http-client >= 0.2.0.0,
@@ -84,7 +87,9 @@ executable analysis-app
   hs-source-dirs:    src/main src
   ghc-options:       -Wall -O2
   main-is:           Main.hs
-  build-depends:     basic-prelude >= 0.3.6.0,
+  build-depends:     xml-conduit >= 1.1.0.0,
+                     xml-types >= 0.3.4,
+                     basic-prelude >= 0.3.6.0,
                      persistent >= 2.0.0,
                      persistent-template >= 2.0.0,
                      http-client >= 0.2.0.0,
