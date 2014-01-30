@@ -25,31 +25,41 @@ module Data.CSV.Conduit.Persist
     ,   Day
     ,   TimeOfDay
     ,   CsvInvalidRow(..)
+    ,   CsvFormat(..)
     ,   mkCsvPersist
     ,   persistCsv
     ,   fromEnumPersistValue
     ,   csvIntoEntities
+    ,   csvRowsIntoEntities
+    ,   xmlEventsIntoCsvRows
     ,   attribValueToCsvInvalidRow
     ,   csvInvalidRowsAttribName
     ,   csvNoHeaderRowAttribName
     ,   csvInvalidRowToAttribValue
+    ,   csvFormatToAttribValue
+    ,   csvFormatAttribName
     ) where
 
 import           BasicPrelude
-import           Data.CSV.Conduit             (defCSVSettings, intoCSV)
-import           Data.Conduit                 (Conduit, (=$=), MonadThrow, await)
-import qualified Data.Conduit.List            as CL
-import qualified Data.Map                     as Map
-import           Data.Proxy (Proxy)
-import qualified Data.Text                    as Text
-import           Data.Time.Calendar           (Day)
-import           Data.Time.Format             (parseTime)
-import           Data.Time.LocalTime          (TimeOfDay)
-import           Database.Persist             as X
-import           Database.Persist.TH          as X
-import           Language.Haskell.TH.Quote    (QuasiQuoter)
-import           Language.Haskell.TH.Syntax   (Dec, Q)
-import           System.Locale                (defaultTimeLocale)
+import           Data.Conduit               (Conduit, MonadThrow, await, yield,
+                                             (=$=))
+import qualified Data.Conduit.List          as CL
+import           Data.CSV.Conduit           (defCSVSettings, intoCSV)
+import qualified Data.Map                   as Map
+import           Data.Proxy                 (Proxy)
+import qualified Data.Text                  as Text
+import           Data.Time.Calendar         (Day)
+import           Data.Time.Format           (parseTime)
+import           Data.Time.LocalTime        (TimeOfDay)
+import           Data.XML.Types             (Content (..), Event (..),
+                                             Name (..))
+import           Database.Persist           as X
+import           Database.Persist.TH        as X
+import           Language.Haskell.TH.Quote  (QuasiQuoter)
+import           Language.Haskell.TH.Syntax (Dec, Q)
+import qualified Prelude                    as P
+import           System.Locale              (defaultTimeLocale)
+import           Text.XML.Stream.Parse      (def, parseBytes)
 
 mkCsvPersist :: [EntityDef SqlType] -> Q [Dec]
 mkCsvPersist = mkPersist sqlOnlySettings{mpsGeneric = False, mpsGenerateLenses = True}
@@ -67,18 +77,26 @@ fromEnumPersistValue tpv x = case Map.lookup x m of
     m = Map.fromList $ map (\v -> (tpv v, v)) [minBound..maxBound]
 
 csvIntoEntities
-    :: (MonadThrow m,PersistEntity entity)
+    :: (MonadThrow m, PersistEntity entity)
     => Proxy entity -> Conduit ByteString m (Either Text entity)
 csvIntoEntities p =
-    intoCSV defCSVSettings
-        =$= do
-            if hasHeaderRow
-                then void $ await
-                else return ()
-            CL.map csvRowIntoEntity
+    case attribValueToCsvFormat $ fromMaybe (csvFormatToAttribValue CsvFormatCsv)
+            $ getAttribValue csvFormatAttribName $ entityAttrs $ entityDef p of
+        Just CsvFormatCsv -> intoCSV defCSVSettings =$= csvRowsIntoEntities p
+        Just CsvFormatXml -> parseBytes def =$= xmlEventsIntoCsvRows =$= csvRowsIntoEntities p
+        _ -> return ()
+
+csvRowsIntoEntities
+    :: (MonadThrow m, PersistEntity entity)
+    => Proxy entity -> Conduit [Text] m (Either Text entity)
+csvRowsIntoEntities p = do
+    if hasHeaderRow
+        then void $ await
+        else return ()
+    CL.map csvRowIntoEntity
   where
     hasHeaderRow = not $ csvNoHeaderRowAttribName `elem` entityAttrs entDef
-      
+
     csvRowIntoEntity :: PersistEntity entity => [Text] -> Either Text entity
     csvRowIntoEntity row =
         -- EKB FIXME handle mismatch in # of fields
@@ -93,7 +111,7 @@ csvIntoEntities p =
         SqlDay ->
             case parseTime
                     defaultTimeLocale
-                    (Text.unpack $ fromMaybe "%F" $ getAttribValue "format" fieldAttrs)
+                    (Text.unpack $ fromMaybe "%F" $ getAttribValue csvFormatAttribName fieldAttrs)
                     (Text.unpack val) of
                 Just day    -> PersistDay day
                 Nothing     -> error $ "invalid Day: " ++ Text.unpack val
@@ -101,20 +119,20 @@ csvIntoEntities p =
             -- EKB TODO allow to specify timezone?
             case parseTime
                     defaultTimeLocale
-                    (Text.unpack $ fromMaybe "%T" $ getAttribValue "format" fieldAttrs)
+                    (Text.unpack $ fromMaybe "%T" $ getAttribValue csvFormatAttribName fieldAttrs)
                     (Text.unpack val) of
                 Just day    -> PersistTimeOfDay day
                 Nothing     -> error $ "invalid TimeOfDay: " ++ Text.unpack val
         _ -> error "not implemented yet" -- EKB TODO implement others
 
-    getAttribValue :: Text -> [Text] -> Maybe Text
-    getAttribValue _ [] = Nothing
-    getAttribValue name (a:as) = case Text.stripPrefix (name ++ "=") a of
-        Nothing -> getAttribValue name as
-        Just s  -> Just s
-
     entDef :: EntityDef SqlType
     entDef = entityDef p
+
+getAttribValue :: Text -> [Text] -> Maybe Text
+getAttribValue _ [] = Nothing
+getAttribValue name (a:as) = case Text.stripPrefix (name ++ "=") a of
+    Nothing -> getAttribValue name as
+    Just s  -> Just s
 
 attribValueToCsvInvalidRow :: (Eq a, IsString a) => a -> Maybe CsvInvalidRow
 attribValueToCsvInvalidRow v =
@@ -125,7 +143,10 @@ csvInvalidRowsAttribName = "invalidRows"
 
 csvNoHeaderRowAttribName :: Text
 csvNoHeaderRowAttribName = "noHeaderRow"
-    
+
+csvFormatAttribName :: Text
+csvFormatAttribName = "format"
+
 csvInvalidRowToAttribValue :: IsString a => CsvInvalidRow -> a
 csvInvalidRowToAttribValue CsvInvalidRowStop     = "stop"
 csvInvalidRowToAttribValue CsvInvalidRowSkip     = "skip"
@@ -137,5 +158,72 @@ data CsvInvalidRow
     |   CsvInvalidRowDefault
     deriving (Read, Show, Eq, Enum, Bounded)
 
+-- EKB TODO: since this handles XML and CSV, this whole module should probably be
+--           changed to not have "CSV" in the name
+csvFormatToAttribValue :: IsString a => CsvFormat -> a
+csvFormatToAttribValue CsvFormatCsv = "csv"
+csvFormatToAttribValue CsvFormatXml = "xml"
+
+attribValueToCsvFormat :: (IsString a, Eq a) => a -> Maybe CsvFormat
+attribValueToCsvFormat "csv"    = Just CsvFormatCsv
+attribValueToCsvFormat "xml"    = Just CsvFormatXml
+attribValueToCsvFormat _        = Nothing
+
+data CsvFormat
+    =   CsvFormatCsv
+    |   CsvFormatXml
+    deriving (Read, Show, Eq, Enum, Bounded)
+
 --EKB TODO make a variant of derivePersistField that handles conversion
 --  from CSV values instead of using Read/Show
+
+xmlEventsIntoCsvRows :: MonadThrow m => Conduit Event m ([Text])
+xmlEventsIntoCsvRows = do
+    -- EKB FIXME Expects every row to have attributes in same order.
+    -- EKB FIXME No idea whether this is memory-efficient, with all its recursion and continuation passing.
+    beginDocument
+    endDocument
+  where
+    beginDocument = do
+        me <- await
+        case me of
+            Just (EventBeginDocument) -> beginDocument
+            Just (EventContent _) -> requireWhitespace me beginDocument
+            Just (EventBeginElement _ _) -> beginRow True
+            _ -> unexpected me "document not begun"
+    endDocument = do
+        me <- await
+        case me of
+            Just (EventEndDocument) -> return ()
+            Just (EventContent _) -> requireWhitespace me endDocument
+            _ -> unexpected me "rows ended"
+    beginRow firstRow = do
+        me <- await
+        case me of
+            Just (EventBeginElement _ attrs) -> do
+                when firstRow $
+                    yield $ flip map attrs $ \(Name{..}, _) -> nameLocalName
+                yield $ flip map attrs $ \(_, cs) -> Text.concat $ flip map cs $ \c -> case c of
+                    ContentText t -> t
+                    _ -> unexpected me "attribute has entity ref"
+                endRow
+                beginRow False
+            Just (EventContent _) -> requireWhitespace me $ beginRow firstRow
+            Just (EventEndElement _) -> return ()
+            Just _ -> unexpected me "not a row"
+            Nothing -> unexpected me "premature end"
+    endRow = do
+        me <- await
+        case me of
+            Just (EventEndElement _) -> return ()
+            Just (EventContent _) -> requireWhitespace me endRow
+            _ -> unexpected me "row ended"
+    requireWhitespace :: Maybe Event -> r -> r
+    requireWhitespace me@(Just (EventContent c)) parse
+        | isSpace c = parse
+        | otherwise = unexpected me "not empty"
+    requireWhitespace me _ = unexpected me "not empty"
+    isSpace (ContentText c) = Text.null $ Text.strip c
+    isSpace _ = False
+    unexpected me reason =
+        error $ "Unexpected XML event (" ++ reason ++ "): " ++ P.show me

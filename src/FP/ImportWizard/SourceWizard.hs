@@ -9,11 +9,12 @@ module FP.ImportWizard.SourceWizard where
 
 import           Control.Monad.Trans.Resource (ResourceT, runResourceT)
 import           Data.Char                    (isAlpha, isAlphaNum, isSpace)
-import           Data.Conduit                 (Sink, ($$), ($$+-), (=$))
+import           Data.Conduit                 (Sink, ($$), ($$+-), (=$), (=$=))
 import           Data.Conduit.Binary          (sourceFile)
 import qualified Data.Conduit.List            as CL
 import           Data.CSV.Conduit             (Row, defCSVSettings, intoCSV)
-import           Data.CSV.Conduit.Persist     (CsvInvalidRow (..))
+import           Data.CSV.Conduit.Persist     (CsvInvalidRow (..),
+                                               xmlEventsIntoCsvRows)
 import qualified Data.Set                     as Set
 import qualified Data.Text                    as Text
 import qualified Data.Text.Encoding           as Text
@@ -26,6 +27,7 @@ import           Network.HTTP.Conduit         (http, parseUrl, responseBody,
                                                withManager)
 import           Safe                         (headDef, readMay)
 import           System.Locale                (defaultTimeLocale)
+import           Text.XML.Stream.Parse        (def, parseBytes)
 
 import           FP.ImportWizard.Generate
 import           FP.ImportWizard.Import       hiding (parseTime)
@@ -44,8 +46,8 @@ iwPageHandler oldData IWFormatPage = do
                     "Format: " (Just iwfdFormat)
     case res of
         WizardFormProcess (FormSuccess newIWFD@IWFormatData{..})
-            | iwfdFormat /= IWCSVFormat -> do
-                setMessage "Only the CSV format is supported for the demo."
+            | not (iwfdFormat `elem` [IWCSVFormat, IWXMLFormat]) -> do
+                setMessage "Only the CSV and XML formats are supported for the demo."
                 renderIWPage formWidget enctype
             | not (isValidConIdent $ Text.unpack iwfdName) -> do
                 setMessage $ toHtml $ "Name must be a valid Haskell type identifier: " ++ validConIdentDesc ++ "."
@@ -59,14 +61,17 @@ iwPageHandler oldData IWFormatPage = do
         _ ->
             renderIWPage formWidget enctype
 
-iwPageHandler oldData@IWData{iwdSource = oldIwsd} IWSourcePage = do
+iwPageHandler oldData@IWData{iwdSource = oldIwsd, iwdFormat = IWFormatData{..}} IWSourcePage = do
 
-    defaultCsv <- liftIO $ getCsvContent oldIwsd
+    defaultContent <- liftIO $ getContent oldIwsd
+    let csvOrXml = formatTitle iwfdFormat
     ((res, formWidget), enctype) <- runWizardForm $ renderTable $ SourceForm
-        <$> aopt urlField "CSV data source URL: "{fsAttrs=wideFieldAttrs} (Just $ iwsdUrl oldIwsd)
-        <*> aopt textareaField "or enter CSV data: "{fsAttrs=largeTextareaAttrs} (Just $ Textarea <$> defaultCsv)
-        <*> fileAFormOpt "or upload CSV file: "
-        <*> areq checkBoxField "Has header row: " (Just $ iwsdHasHeaderRow oldIwsd)
+        <$> aopt urlField ""{fsLabel = fromString $ Text.unpack $ csvOrXml ++ " data source URL: ", fsAttrs = wideFieldAttrs} (Just $ iwsdUrl oldIwsd)
+        <*> aopt textareaField ""{fsLabel = fromString $ Text.unpack $ "or enter " ++ csvOrXml ++ " data: ", fsAttrs = largeTextareaAttrs} (Just $ Textarea <$> defaultContent)
+        <*> fileAFormOpt ""{fsLabel = fromString $ Text.unpack $ "or upload " ++ csvOrXml ++ " file: "}
+        <*> if iwfdFormat == IWCSVFormat
+                then areq checkBoxField "Has header row: " (Just $ iwsdHasHeaderRow oldIwsd)
+                else pure True
         -- EKB TODO also specify separator and quote characters
 
     case res of
@@ -78,7 +83,7 @@ iwPageHandler oldData@IWData{iwdSource = oldIwsd} IWSourcePage = do
                     renderIWPage formWidget enctype
                 else if newIwsd /= oldIwsd
                     then do
-                        maybeTypes <- liftIO $ deriveCsvColumns newIwsd
+                        maybeTypes <- liftIO $ deriveColumns newIwsd
                         case maybeTypes of
                             Nothing -> continueWizard savedData
                             Just types -> continueWizard savedData{iwdTypes = types}
@@ -98,7 +103,7 @@ iwPageHandler oldData@IWData{iwdSource = oldIwsd} IWSourcePage = do
         saveCsvTempToken <- case stripMaybe $ unTextarea <$> sfCsv of
             Nothing -> return Nothing
             Just csv -> do
-                oldCsv <- getCsvContent oldIwsd
+                oldCsv <- getContent oldIwsd
                 if Just csv == oldCsv
                     then return $ iwsdCsvTempToken oldIwsd
                     else do
@@ -121,27 +126,31 @@ iwPageHandler oldData@IWData{iwdSource = oldIwsd} IWSourcePage = do
             ,   iwsdUploadTempToken =   saveUploadTempToken
             ,   iwsdHasHeaderRow    =   sfHasHeaderRow }}
 
-    getCsvContent :: IWSourceData -> IO (Maybe Text)
-    getCsvContent IWSourceData{..} =
+    getContent :: IWSourceData -> IO (Maybe Text)
+    getContent IWSourceData{..} =
         case iwsdCsvTempToken of
             Nothing -> return Nothing
             Just csvTempToken -> do
                 tempPath <- getTempTokenPath csvTempToken
                 (Just . Text.decodeUtf8) <$> FS.readFile tempPath
 
-    deriveCsvColumns iwsd =
-        intoSink iwsd $
-            intoCSV defCSVSettings =$ do
-                columnNames <- CL.isolate (if iwsdHasHeaderRow iwsd then 1 else 0) =$
-                    CL.fold deriveHeaderRow (defaultColumnNames 1)
-                columnPossibleTypes <- CL.isolate analyzeRowCount =$
-                    CL.fold deriveRow []
-                return $ Just $ flip map (zip columnNames columnPossibleTypes) $
-                        \(n,(ts,o)) -> IWColumn
-                    {   iwcName     =   Text.pack $ toValidVarIdent $ Text.unpack n
-                    ,   iwcType     =   headDef IWTextType ts
-                    ,   iwcOptional =   o
-                    ,   iwcDefault  =   Nothing }
+    deriveColumns iwsd =
+        intoSink iwsd $ intoRows =$ do
+            columnNames <- CL.isolate (if iwsdHasHeaderRow iwsd then 1 else 0) =$
+                CL.fold deriveHeaderRow (defaultColumnNames 1)
+            columnPossibleTypes <- CL.isolate analyzeRowCount =$
+                CL.fold deriveRow []
+            return $ Just $ flip map (zip columnNames columnPossibleTypes) $
+                    \(n,(ts,o)) -> IWColumn
+                {   iwcName     =   Text.pack $ toValidVarIdent $ Text.unpack n
+                ,   iwcType     =   headDef IWTextType ts
+                ,   iwcOptional =   o
+                ,   iwcDefault  =   Nothing }
+
+    intoRows = case iwfdFormat of
+        IWCSVFormat -> intoCSV defCSVSettings
+        IWXMLFormat -> parseBytes def =$= xmlEventsIntoCsvRows
+        _ -> error $ Text.unpack $ "Unsupported format for demo: " ++ formatTitle iwfdFormat
 
     intoSink :: IWSourceData -> Sink ByteString (ResourceT IO) (Maybe a) -> IO (Maybe a)
     intoSink IWSourceData{..} sink =
@@ -160,7 +169,6 @@ iwPageHandler oldData@IWData{iwdSource = oldIwsd} IWSourcePage = do
                         tempPath <- getTempTokenPath uploadTempToken
                         runResourceT $ sourceFile (Path.encodeString tempPath) $$ sink
                     Nothing -> return Nothing
-
 
     deriveHeaderRow :: [Text] -> Row Text -> [Text]
     deriveHeaderRow _ row = row
@@ -196,10 +204,8 @@ iwPageHandler oldData@IWData{iwdSource = oldIwsd} IWSourcePage = do
 
     -- EKB TODO: make row count customizable
     analyzeRowCount =   1000
-    
+
     maxEnumSize     =   50
-
-
 
     stripMaybe :: Maybe Text -> Maybe Text
     stripMaybe mt =
@@ -432,7 +438,8 @@ invalidTitle CsvInvalidRowSkip      =   "Skip and ignore the row"
 invalidTitle CsvInvalidRowDefault   =   "Set invalid columns to default values"
 
 formatTitle :: IWFormat -> Text
-formatTitle IWCSVFormat             =   "CSV file"
+formatTitle IWCSVFormat             =   "CSV"
+formatTitle IWXMLFormat             =   "XML"
 formatTitle IWPostgresFormat        =   "Postgres database"
 formatTitle IWStockDataFeedFormat   =   "Stock data feed"
 

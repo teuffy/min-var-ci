@@ -10,7 +10,9 @@ module FP.ImportWizard.Generate where
 import           BasicPrelude
 import           Data.Char                (isAlpha, isAlphaNum, isLower,
                                            isSpace, isUpper, toLower, toUpper)
-import           Data.CSV.Conduit.Persist (csvInvalidRowToAttribValue,
+import           Data.CSV.Conduit.Persist (csvFormatAttribName,
+                                           csvFormatToAttribValue,
+                                           csvInvalidRowToAttribValue,
                                            csvInvalidRowsAttribName,
                                            csvNoHeaderRowAttribName)
 import qualified Data.Set                 as Set
@@ -127,6 +129,9 @@ generateModel IWData{..} =
     entityDef = ""
         :   (   Text.pack (toValidConIdent $ Text.unpack $ iwfdName iwdFormat)
                 ++  " " ++ attrib csvInvalidRowsAttribName (csvInvalidRowToAttribValue iwdInvalid)
+                ++  " " ++ attrib csvFormatAttribName
+                            (   csvFormatToAttribValue $ fromMaybe (error "Unsupported format")
+                            $   iwFormatToCsvFormat $ iwfdFormat iwdFormat )
                 ++  (if iwsdHasHeaderRow iwdSource then "" else " " ++ csvNoHeaderRowAttribName))
         :   map columnDef iwdTypes
         ++  ["    deriving Show"] -- EKB TODO add any other derived classes?
@@ -155,8 +160,8 @@ generateModel IWData{..} =
         IWEnumType _        ->  Nothing
         IWIntType           ->  Nothing
         IWDoubleType        ->  Nothing
-        IWDayType f         ->  Just $ attrib "format" f
-        IWTimeOfDayType f   ->  Just $ attrib "format" f
+        IWDayType f         ->  Just $ attrib csvFormatAttribName f
+        IWTimeOfDayType f   ->  Just $ attrib csvFormatAttribName f
         IWTextType          ->  Nothing
 
 pragma :: String -> ModulePragma
@@ -220,7 +225,7 @@ toValidIdent [a]
     | otherwise                 = "_"
 toValidIdent (a:a':as)
     | isValidIdentChar a        = a     : toValidIdent (a':as)
-    | isSpace a                 =         toValidIdent (toUpper a':as)
+    | isSpace a || a == '-'     =         toValidIdent (toUpper a':as)
     | otherwise                 = '_'   : toValidIdent (a':as)
 
 isValidIdent :: String -> Bool

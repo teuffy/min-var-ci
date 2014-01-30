@@ -5,7 +5,7 @@
 module FP.ImportWizard.Types where
 
 import           BasicPrelude
-import           Data.CSV.Conduit.Persist (CsvInvalidRow(..))
+import           Data.CSV.Conduit.Persist (CsvInvalidRow(..), CsvFormat(..))
 import qualified Data.Set                 as Set
 
 import           FP.ImportWizard.Temp
@@ -43,8 +43,15 @@ data IWColumn = IWColumn
     ,   iwcDefault  :: Maybe Text
     } deriving (Read, Show, Eq)
 
+iwFormatToCsvFormat :: IWFormat -> Maybe CsvFormat
+iwFormatToCsvFormat IWCSVFormat             = Just CsvFormatCsv
+iwFormatToCsvFormat IWXMLFormat             = Just CsvFormatXml
+iwFormatToCsvFormat IWPostgresFormat        = Nothing
+iwFormatToCsvFormat IWStockDataFeedFormat   = Nothing
+
 data IWFormat
     =   IWCSVFormat
+    |   IWXMLFormat
     |   IWPostgresFormat
     |   IWStockDataFeedFormat
     deriving (Read, Show, Eq, Enum, Bounded)
