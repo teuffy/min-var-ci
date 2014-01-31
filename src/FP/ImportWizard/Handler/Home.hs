@@ -73,9 +73,11 @@ postCreateProjectR = do
     (tempToken, tempPath) <- newTempToken
     liftIO $ do
         FS.createTree tempPath
-        runSystem "tar" ["xzf", "data/import-wizard/skel.tgz", "-C", Path.encodeString tempPath]
-        forM_ (generateCode data_) $ \(path, code) ->
-            FS.writeFile (tempPath </> path) $ Text.encodeUtf8 code
+        runSystem "cp" ["-r", "skel/.", Path.encodeString tempPath]
+        runSystem "rm" ["-rf", Path.encodeString $ tempPath </> "src" </> "Skel"]
+        generatedCode <- generateCode data_
+        forM_ generatedCode $ \(path, code) ->
+            FS.writeFile (tempPath </> "src" </> path) $ Text.encodeUtf8 code
         let gitArgs =
                 [   "--git-dir=" ++ Path.encodeString (tempPath </> ".git")
                 ,   "--work-tree=" ++ Path.encodeString tempPath

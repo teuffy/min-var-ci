@@ -15,13 +15,15 @@ defaultIwData = IWData
     {   iwdFormat   =   IWFormatData "" IWCSVFormat
     ,   iwdSource   =   IWSourceData True Nothing Nothing Nothing
     ,   iwdTypes    =   []
-    ,   iwdInvalid  =   CsvInvalidRowStop }
+    ,   iwdInvalid  =   CsvInvalidRowStop
+    ,   iwdAnalysis =   IWRSIAnalysis }
         
 data IWData =   IWData
-    {   iwdFormat  :: IWFormatData
-    ,   iwdSource  :: IWSourceData
-    ,   iwdTypes   :: [IWColumn]
-    ,   iwdInvalid :: CsvInvalidRow
+    {   iwdFormat       :: IWFormatData
+    ,   iwdSource       :: IWSourceData
+    ,   iwdTypes        :: [IWColumn]
+    ,   iwdInvalid      :: CsvInvalidRow
+    ,   iwdAnalysis     :: IWAnalysis
     } deriving (Read, Show, Eq)
 
 data IWFormatData = IWFormatData
@@ -64,3 +66,8 @@ data IWType
     |   IWTimeOfDayType Text
     |   IWEnumType (Set.Set Text)
     deriving (Read, Show, Eq)
+
+data IWAnalysis
+    =   IWCustomAnalysis
+    |   IWRSIAnalysis
+    deriving (Read, Show, Eq, Enum, Bounded)

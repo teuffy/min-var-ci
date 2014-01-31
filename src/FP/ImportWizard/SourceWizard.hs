@@ -360,13 +360,28 @@ iwPageHandler oldData IWInvalidPage = do
         _ ->
             renderIWPage formWidget enctype
 
+iwPageHandler oldData IWAnalysisPage = do
+    ((res, formWidget), enctype) <-
+        runWizardForm $ renderTable $ areq (radioFieldList $ optionsListSum analysisTitle)
+            "Analysis: " (Just $ iwdAnalysis oldData)
+    case res of
+        WizardFormProcess (FormSuccess newAnalysis) ->
+            continueWizard oldData{iwdAnalysis = newAnalysis}
+        WizardFormContinue (FormSuccess newAnalysis) ->
+            continueWizard oldData{iwdAnalysis = newAnalysis}
+        WizardFormContinue _ ->
+            continueWizard oldData
+        _ ->
+            renderIWPage formWidget enctype
+
 iwPageHandler data_ IWReviewPage = do
     submitted <- getIsPageSubmitted
     if submitted
         then continueWizard data_
         else do
+            generatedCode <- liftIO $ generateCode data_
             let widget = toWidget [shamlet|
-                    $forall (path, code) <- generateCode data_
+                    $forall (path, code) <- generatedCode
                         <h3>#{Path.encodeString path}
                         <pre>#{code}
                     |]
@@ -422,6 +437,7 @@ iwPageTitle IWFormatPage      =   "Name and data format"
 iwPageTitle IWSourcePage      =   "Data source"
 iwPageTitle IWTypesPage       =   "Column data types"
 iwPageTitle IWInvalidPage     =   "Invalid data handling"
+iwPageTitle IWAnalysisPage    =   "Select analysis"
 iwPageTitle IWReviewPage      =   "Review generated code"
 
 data IWPage
@@ -429,6 +445,7 @@ data IWPage
     |   IWSourcePage
     |   IWTypesPage
     |   IWInvalidPage
+    |   IWAnalysisPage
     |   IWReviewPage
     deriving (Read, Show, Eq, Bounded, Enum)
 
@@ -442,6 +459,10 @@ formatTitle IWCSVFormat             =   "CSV"
 formatTitle IWXMLFormat             =   "XML"
 formatTitle IWPostgresFormat        =   "Postgres database"
 formatTitle IWStockDataFeedFormat   =   "Stock data feed"
+
+analysisTitle :: IWAnalysis -> Text
+analysisTitle IWCustomAnalysis = "Custom"
+analysisTitle IWRSIAnalysis = "RSI"
 
 defaultPossibleTypes :: [IWType]
 defaultPossibleTypes =

@@ -8,23 +8,31 @@
 module FP.ImportWizard.Generate where
 
 import           BasicPrelude
-import           Data.Char                (isAlpha, isAlphaNum, isLower,
-                                           isSpace, isUpper, toLower, toUpper)
-import           Data.CSV.Conduit.Persist (csvFormatAttribName,
-                                           csvFormatToAttribValue,
-                                           csvInvalidRowToAttribValue,
-                                           csvInvalidRowsAttribName,
-                                           csvNoHeaderRowAttribName)
-import qualified Data.Set                 as Set
-import qualified Data.Text                as Text
+import           Data.Char                 (isAlpha, isAlphaNum, isLower,
+                                            isSpace, isUpper, toLower, toUpper)
+import           Data.CSV.Conduit.Persist  (csvFormatAttribName,
+                                            csvFormatToAttribValue,
+                                            csvInvalidRowToAttribValue,
+                                            csvInvalidRowsAttribName,
+                                            csvNoHeaderRowAttribName)
+import qualified Data.Set                  as Set
+import qualified Data.Text                 as Text
+import qualified Data.Text.Encoding        as Text
+import qualified Filesystem                as FS
+import qualified Filesystem.Path.CurrentOS as Path
 import           Language.Haskell.Exts
 
 import           FP.ImportWizard.Types
 
-generateCode :: IWData -> [(FilePath, Text)]
+generateCode :: IWData -> IO [(FilePath, Text)]
 generateCode iwData =
-    [   ("UserTypes.hs", generateTypes iwData)
-    ,   ("UserModel.hs", generateModel iwData) ]
+    forM    [   ("UserTypes.hs"         ,   return $ generateTypes iwData)
+            ,   ("UserModel.hs"         ,   return $ generateModel iwData)
+            ,   ("UserParameters.hs"    ,   generateSkelFile iwData "skel/src" "UserParameters.hs")
+            ,   ("UserAnalysis.hs"      ,   generateSkelFile iwData "skel/src" "UserAnalysis.hs")
+            ,   ("main/Main.hs"         ,   generateSkelFile iwData "skel/src" "Main.hs")
+            ] $ \(fp,ac) -> do
+        (fp,) <$> ac
 
 generateTypes :: IWData -> Text
 generateTypes IWData{..} =
@@ -233,3 +241,14 @@ isValidIdent = all isValidIdentChar
 
 isValidIdentChar :: Char -> Bool
 isValidIdentChar c = isAlphaNum c || c == '_' || c == '\''
+
+generateSkelFile :: IWData -> FilePath -> FilePath -> IO Text
+generateSkelFile IWData{..} dir modul = do
+    let pmod = analysisParentModule iwdAnalysis
+        pdir = Path.concat $ map Path.fromText $ Text.splitOn "." pmod
+    c <- Text.decodeUtf8 <$> FS.readFile (dir </> pdir </> modul)
+    return $ Text.replace (pmod ++ ".") "" c
+
+analysisParentModule :: IWAnalysis -> Text
+analysisParentModule IWCustomAnalysis   = "Skel.Custom"
+analysisParentModule IWRSIAnalysis      = "Skel.RSI"
