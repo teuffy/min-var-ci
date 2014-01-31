@@ -9,10 +9,8 @@
 {-# LANGUAGE EmptyDataDecls #-}
 module UserModel
     ( module UserModel
-    , module DataAnalysis.Application.Import
     ) where
 import Data.CSV.Conduit.Persist
-import DataAnalysis.Application.Import
 
 mkCsvPersist
   [persistCsv|

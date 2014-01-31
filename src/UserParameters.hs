@@ -4,9 +4,11 @@
 module UserParameters
     ( module UserParameters
     , module UserModel
+    , module DataAnalysis.Application.Import
     ) where
 
 import UserModel
+import DataAnalysis.Application.Import
 
 -- | Parameters to the analysis.
 data RsiParams = RsiParams
