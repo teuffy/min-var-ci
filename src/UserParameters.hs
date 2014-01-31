@@ -1,9 +1,12 @@
 -- This module controls the parameters that the analysis accepts from a user.
 -- In the near future, this will be replaced by a higher level DSL.
 {-# LANGUAGE OverloadedStrings #-}
-module UserParameters (RsiParams (..), module X) where
+module UserParameters
+    ( module UserParameters
+    , module UserModel
+    ) where
 
-import DataAnalysis.Application.Import as X
+import UserModel
 
 -- | Parameters to the analysis.
 data RsiParams = RsiParams
