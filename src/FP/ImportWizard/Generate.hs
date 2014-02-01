@@ -117,10 +117,14 @@ generateModel IWData{..} =
             Nothing
             (Just
                 [   EModuleContents (ModuleName "UserModel")
-                ,   EModuleContents (ModuleName "UserTypes") ])
+                ,   EModuleContents (ModuleName "UserTypes")
+                ,   EModuleContents (ModuleName "DataAnalysis.Application.Import")
+                ])
             (map import_
-                [   ("Data.CSV.Conduit.Persist" , [], Nothing)
-                ,   ("UserTypes"                , [], Nothing) ])
+                [   ("Data.CSV.Conduit.Persist"       , [], Nothing)
+                ,   ("UserTypes"                      , [], Nothing)
+                ,   ("DataAnalysis.Application.Import", [], Nothing)
+                ])
             decls
 
   where

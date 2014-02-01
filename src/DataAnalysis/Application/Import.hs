@@ -1,70 +1,33 @@
-{-# LANGUAGE ConstraintKinds           #-}
-{-# LANGUAGE DeriveDataTypeable        #-}
-{-# LANGUAGE ExistentialQuantification #-}
-{-# LANGUAGE FlexibleContexts          #-}
-{-# LANGUAGE MultiParamTypeClasses     #-}
-{-# LANGUAGE OverloadedStrings         #-}
-{-# LANGUAGE QuasiQuotes               #-}
-{-# LANGUAGE TemplateHaskell           #-}
-{-# LANGUAGE TypeFamilies              #-}
-{-# LANGUAGE UndecidableInstances      #-}
-
-{-# OPTIONS -fno-warn-unused-imports #-}
-
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 module DataAnalysis.Application.Import
-    ( module DataAnalysis.Application.Import
-    , module X
+    ( module X
+    , startAnalysis
     ) where
 
-import           Control.Applicative as X
-import           Control.Lens as X
-import           Data.ByteString                      (ByteString)
-import           Data.Conduit                         as X
-import           Data.Conduit.Analysis                as X
-import qualified Data.Conduit.List                    as CL
-import           Data.Conduit.List                    as X (isolate)
-import           Data.Default                         as X
-import qualified Data.Map                             as Map
-import           Data.Text                            (Text, pack, unpack)
-import           Data.Time                            (Day)
-import           Data.Vector                          as X (Vector)
-import           DataAnalysis.Application.Types       as X
-import           DataAnalysis.Application.Types.Stock as X
-import           Safe                                 (readMay)
-import           Yesod                                as X hiding ((.=), (<.))
+import           Control.Applicative            as X
+import           Control.Lens                   as X
+import           Data.Conduit                   as X
+import           Data.Conduit.Analysis          as X
+import           Data.Conduit.List              as X (isolate)
+import           Data.Default                   as X
+import           Data.String                    (IsString (fromString))
+import           Data.Time                      as X
+import           Data.Vector                    as X (Vector)
+import           DataAnalysis.Application.Types as X
+import           DataAnalysis.Library           as X
+import           Safe                           (readMay)
+import           Yesod                          as X hiding (filterField, (.=),
+                                                      (<.), parseTime)
 
-data UpDown = UpDown
-    { _udDate :: !Day
-    , _udUp   :: !Double
-    , _udDown :: !Double
-    }
-    deriving Show
-makeClassy ''UpDown
+-- | Performs no transformation on the stream. The main purpose of this
+-- function is to make analysis pipelines easier to manipulate, by ensuring
+-- that each step begins with the @=$=@ operator.
+startAnalysis :: Monad m => Conduit a m a
+startAnalysis = awaitForever yield
 
-stocksToUpDown :: Monad m => Conduit Stock m UpDown
-stocksToUpDown =
-    await >>= maybe (return ()) loop
-  where
-    loop today = do
-        myesterday <- await
-        case myesterday of
-            Nothing -> return ()
-            Just yesterday -> do
-                let ud = UpDown
-                        { _udDate = today ^. stockDate
-                        , _udUp = max 0 $ (today ^. stockAdjClose) - (yesterday ^. stockAdjClose)
-                        , _udDown = max 0 $ (yesterday ^. stockAdjClose) - (today ^. stockAdjClose)
-                        }
-                yield ud
-                loop yesterday
-
-rawStockSource :: (MonadResource m, MonadBaseControl IO m, ManagerReader m)
-               => Text -- ^ stock symbol
-               -> Source m ByteString
-rawStockSource symbol = sourceURL $ "http://ichart.finance.yahoo.com/table.csv?s=" ++ unpack symbol
-
-shown :: Show a => IndexPreservingGetter a Text
-shown = to (pack . show)
-
-mapStream :: Monad m => (a -> b) -> Conduit a m b
-mapStream = CL.map
+-- orphan instance!
+instance IsString Day where
+    fromString s =
+        case readMay s of
+            Nothing -> error $ "Invalid date literal in source code: " ++ show s
+            Just d -> d

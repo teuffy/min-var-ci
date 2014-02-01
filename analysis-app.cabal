@@ -25,8 +25,8 @@ library
                      DataAnalysis.Application.Foundation
                      DataAnalysis.Application.Types
                      DataAnalysis.Application.Dispatch
-                     DataAnalysis.Application.Types.Stock
                      DataAnalysis.Application.Analyze
+                     DataAnalysis.Library
                      Data.Conduit.Analysis
                      Data.CSV.Conduit.Persist
   build-depends:     xml-conduit >= 1.1.0.0,

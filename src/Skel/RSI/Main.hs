@@ -5,7 +5,7 @@
 module Skel.RSI.Main where
 
 import DataAnalysis.Application.Prelude
-import UserAnalysis
+import Skel.RSI.UserAnalysis
 
 -- | Start the analysis server with the following configuration.
 main :: IO ()

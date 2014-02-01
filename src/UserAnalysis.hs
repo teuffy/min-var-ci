@@ -10,13 +10,27 @@ import           UserParameters
 -- Our analysis consists of a number of individual pipeline components.
 -- Each component is combined together with the =$= operator, which
 -- causes the output of one component to become the input of the next.
+
+-- For a list of commonly used functions to use in an analysis, see:
+--
+-- http://download.fpcomplete.com/tempdocs/data-analysis-library/DataAnalysis-Library.html
 userAnalysis :: MonadIO m => RsiParams -> Conduit Stock m DataPoint
 userAnalysis (RsiParams size alpha bars) =
-        stocksToUpDown                 -- compute the change in stock price on two consecutive days
-    =$= movingGroupsOf size            -- group the changes into vectors of the user-specified size
-    =$= mapStream (calculateRSI alpha) -- perform the RSI calculation on each packed vector
-    =$= isolate bars                   -- limit output to the number of data points requested by the user
-                                       -- note that no unnecessary computations will be performed
+    -- begin the analysis
+        startAnalysis
+
+    -- compute the change in stock price on two consecutive days
+    =$= stocksToUpDown stockDate stockAdjClose
+
+    -- group the changes into vectors of the user-specified size
+    =$= movingGroupsOf size
+
+    -- perform the RSI calculation on each packed vector
+    =$= mapStream (calculateRSI alpha)
+
+    -- limit output to the number of data points requested by the user
+    -- note that no unnecessary computations will be performed
+    =$= isolate bars
 
 -- | Calculate the RSI value.
 calculateRSI

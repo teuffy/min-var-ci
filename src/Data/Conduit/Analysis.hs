@@ -183,10 +183,12 @@ movingGroupsOf size = do
                 yield (V.head v', v')
                 continue v'
 
--- | Precondition: vector is non-null
+-- | Compute the exponential moving average of the given vector of values.
+--
+-- Precondition: the provided vector must be non-null.
 exponentialMovingAverage
     :: Num a
-    => L.Getter i a
+    => L.Getter i a -- ^ field to average
     -> a -- ^ alpha
     -> V.Vector i
     -> a
