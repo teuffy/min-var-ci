@@ -1,12 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 
--- | Main entry point to my analysis app.
+-- | Pharma analysis with 3D nurbs.
 
 module Main where
 
 import DataAnalysis.Application.Prelude
-import UserAnalysis
+import PharmaUserAnalysis
 
 -- | Start the analysis server with the following configuration.
 main :: IO ()
-main = runAnalysisApp "RSI analysis" userAnalysis
+main = runAnalysisApp "Pharma" userAnalysis

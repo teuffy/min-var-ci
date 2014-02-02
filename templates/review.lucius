@@ -4,6 +4,9 @@
   height: 500px;
   margin-top: 1em;
 }
+#canvas-3d {
+  display: none;
+}
 .code {
   font-family: 'ubuntu mono',monospace;
 }

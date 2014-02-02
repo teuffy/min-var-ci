@@ -20,18 +20,37 @@ function setupAutoReload() {
 // Setup the charts list of choices
 function setupChartChoices(){
     $('#chart').hide();
-    var list = $('#chart-choices');
     var data = $('#placeholder').data('data-points');
-    function choice(title,onclick){
-        list.append($('<li></li>')
-                    .append($('<a href="#"></a>')
-                            .text(title)
-                            .click(onclick)));
-    }
-    choice('Bar',makeChart('Bar',data));
-    choice('Line',makeChart('Line',data));
-    choice('Pie',makeChart('Pie',data));
+    if (data[0].DP3)
+        tee3dChoices(data);
+    else
+        flotJsChoices(data);
+}
+
+// Setup teechart 3D choices
+function tee3dChoices(data){
+    var l = $('#chart-choices');
+    choice(l,'NURBS Heatmap',makeNurbs(data));
+    // default
+    makeNurbs(data)();
+}
+
+// Setup flotjs chart choices
+function flotJsChoices(data){
+    var l = $('#chart-choices');
+    choice(l,'Bar',makeChart('Bar',data));
+    choice(l,'Line',makeChart('Line',data));
+    choice(l,'Pie',makeChart('Pie',data));
+    // default
     makeChart($('#graph_type').val(),data,true)();
+}
+
+// Add a chart choice
+function choice(list,title,onclick){
+    list.append($('<li></li>')
+                .append($('<a href="#"></a>')
+                        .text(title)
+                        .click(onclick)));
 }
 
 // Make a chart of the given type
@@ -41,7 +60,7 @@ function makeChart(type,data,first){
         var groups = Object.create(null);
         var mode = undefined;
         for (var i = 0, len = data.length; i < len; i++) {
-            var datum = data[i];
+            var datum = data[i].DP2;
             var group = data[2] || 0;
             groups[group] = groups[group] || [];
             var label = datum[0];
@@ -101,5 +120,98 @@ function makeChart(type,data,first){
         }
         if(e) e.preventDefault();
         return true;
+    }
+}
+
+// Make a non-uniform rational B-spline
+function makeNurbs(data){
+    return function(){
+        var three, Chart1, surface;
+        function draw() {
+            // Create 3D WebGL context:
+            $('#canvas-3d').show();
+            three  = new Tee.Three("canvas-3d");
+            // Create Chart:
+            Chart1 = new Tee.Chart(three);
+            Chart1.walls.visible=false;
+            // Create Surface:
+            surface = new Tee.Surface();
+            // Add Surface series to Chart:
+            Chart1.addSeries(surface);
+            // Looking at chart with the camera facing the x-axis, where x is width,
+            // z is height, and y is distance.
+            //
+            //        | z
+            //        |
+            //        |
+            //        |0
+            //       / \
+            //      /   \
+            //   x /     \ y
+            //
+            // Then the array of arrays corresponds thusly:
+            //
+            //  0     y
+            //  <----->
+            // [[z,z,z], ^ 0
+            //  [z,z,z], |
+            //  [z,z,z]] v x
+            //
+            //
+            var values = [];
+            var maxX = 0, maxY = 0;
+            // Calculate maxes of coordinates
+            for (var i = 0, len = data.length; i < len; i++) {
+                var d = data[i].DP3;
+                maxX = Math.max(maxX,d[0]);
+                maxY = Math.max(maxY,d[1]);
+            }
+            // Create array to fill in
+            var rows = new Array(maxX + 1);
+            for (var x = 0; x <= maxX; x++) {
+                rows[x] = new Array(maxY + 1);
+                for (var y = 0; y <= maxY; y++) {
+                    rows[x][y] = 0;
+                }
+            }
+            // Fill in the multi-dimensional array
+            for (var i = 0, len = data.length; i < len; i++) {
+                var d = data[i].DP3;
+                var x = d[0], y = d[1], z = d[2];
+                rows[x][y] = z;
+            }
+            surface.data.values = rows;
+            surface.dataChanged=true;
+            // Cosmetics:
+            Chart1.title.text="NURBS";
+            Chart1.walls.back.size=0.2;
+            Chart1.walls.back.format.transparency=0.2;
+            // Valid webGL ?
+            if (three.isEnabled()) {
+                Chart1.draw();
+                animate();
+            }
+            else
+                Detector.addGetWebGLMessage(); // Show message (WebGL not available)
+            three.floor.visible = false;
+            // Loop
+            function animate() {
+                three.update();
+                requestAnimationFrame( animate );
+            }
+        }
+        // Simple random data:
+        function addRandom(rows,cols) {
+            var row;
+            surface.data.values=[];
+            for (var y=0; y<rows; y++) {
+                row=new Array(cols);
+                surface.data.values[y]=row;
+                for (var x=0; x<cols; x++)
+                    row[x] = 500+ Math.cos(0.001*x*y)*(x*x-y*y);
+            }
+            surface.dataChanged=true; // <-- force recalculating pixel colors
+        }
+        draw();
     }
 }

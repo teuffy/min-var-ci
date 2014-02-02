@@ -71,26 +71,60 @@ instance Default ExportType where
   def = CsvData
 
 -- | A data point which can be rendered onto a chart of some kind.
-data DataPoint = DP
-  { _dataLabel :: Text
-  , _dataValue :: Double
-  , _dataGroup :: Maybe Text
+data Data2D = D2D
+  { _d2dLabel :: Text
+  , _d2dValue :: Double
+  , _d2dGroup :: Maybe Text
   } deriving (Show)
 
-$(makeLenses ''DataPoint)
+$(makeLenses ''Data2D)
 
-instance ToMapRow DataPoint where
-    toMapRow (DP label value g) =
+instance ToMapRow Data2D where
+    toMapRow (D2D label value g) =
       Map.fromList [("label",label)
                    ,("value",toShortest value)
                    ,("group",fromMaybe "" g)]
 
-instance ToJSON DataPoint where
-  toJSON (DP label value group') =
+instance ToJSON Data2D where
+  toJSON (D2D label value group') =
     case group' of
       Nothing -> toJSON [toJSON label
                         ,toJSON value]
       Just group'' -> toJSON [toJSON label,toJSON value,toJSON group'']
+
+-- | A 3D data point which can be rendered onto a 3D chart.
+data Data3D = D3D
+  { _dataX :: Int
+  , _dataY :: Int
+  , _dataZ :: Double
+  } deriving (Show)
+
+$(makeLenses ''Data3D)
+
+instance ToMapRow Data3D where
+    toMapRow (D3D x y z) =
+      Map.fromList [("x",toShortest (fromIntegral x))
+                   ,("y",toShortest (fromIntegral y))
+                   ,("z",toShortest z)]
+
+instance ToJSON Data3D where
+  toJSON (D3D x y z) =
+    toJSON [toJSON x
+           ,toJSON y
+           ,toJSON z]
+
+data DataPoint
+  = DP2 Data2D
+  | DP3 Data3D
+  deriving (Show)
+
+instance ToJSON DataPoint where
+  toJSON (DP2 d) = object ["DP2" .= toJSON d]
+  toJSON (DP3 d) = object ["DP3" .= toJSON d]
+
+instance ToMapRow DataPoint where
+  toMapRow (DP2 d) = toMapRow d
+  toMapRow (DP3 d) = toMapRow d
 
 class ManagerReader m where
     askManager :: m Manager

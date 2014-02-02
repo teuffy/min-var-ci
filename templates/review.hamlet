@@ -30,6 +30,7 @@
            <span .caret>
          <ul .dropdown-menu #chart-choices>
        <div #placeholder data-data-points=#{datapointsJson}>
+         <canvas id="canvas-3d" style="background:#f5f5f5" width="800" height="500"></canvas>
 
 <div .row>
   <div .span12>
@@ -41,7 +42,16 @@
             <span .code>
               #{toHtml (show datapoint)}
 
+<!-- FlotJS 2D charts -->
 <script src=@{StaticR flot_jquery_js}>
 <script src=@{StaticR flot_jquery_flot_js}>
 <script src=@{StaticR flot_jquery_flot_categories_js}>
 <script src=@{StaticR flot_jquery_flot_pie_js}>
+
+<!-- Teechart ThreeJS-based 3D charts -->
+<script src=@{StaticR three_three_min_js}>
+<script src=@{StaticR three_detector_js}>
+<script src=@{StaticR three_trackball_js}>
+<script src=@{StaticR helvetiker_font_helvetiker_regular_typeface_js}>
+<script src=@{StaticR teechart_js}>
+<script src=@{StaticR teechart_3d_js}>
