@@ -55,10 +55,11 @@ renderDataPoint (DP2 dp) =
      maybe (return ()) (with "label" . text) (_d2dGroup dp)
   where text = yield . EventContent . ContentText
 renderDataPoint (DP3 (D3D x y z)) =
-  do with "x" (text (toShortest (fromIntegral x)))
-     with "y" (text (toShortest (fromIntegral y)))
-     with "z" (text (toShortest z))
+  do with "x" (text (tshow (fromIntegral x)))
+     with "y" (text (tshow (fromIntegral y)))
+     with "z" (text (tshow z))
   where text = yield . EventContent . ContentText
+        tshow = T.pack . show
 
 --------------------------------------------------------------------------------
 -- Utilities
