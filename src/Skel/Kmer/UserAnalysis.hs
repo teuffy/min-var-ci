@@ -19,7 +19,16 @@ userAnalysis (KmerParams count) =
 
         -- Parse the incoming data as FASTA
     =$= parseFasta
+
+        -- Convert the stream of individual nucleobases into a stream of k-mers
     =$= conduitKmers
+
+        -- Count the frequency of each k-mer
     =$= kmerHistogram
+
+        -- Perform a regrouping of the k-mers based on the
+        -- given textual conversion.
     =$= regroupKmers (T.take count)
+
+        -- Output each k-mer frequency as a datapoint for graphing.
     =$= kmerDataPoint
