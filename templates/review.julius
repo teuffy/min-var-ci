@@ -136,52 +136,63 @@ function makeNurbs(data){
             Chart1.walls.visible=false;
             // Create Surface:
             surface = new Tee.Surface();
+
+            var row, rows = 200, cols = 100;
+            surface.data.values = [];
+            for (var y=0; y<rows; y++) {
+                row=new Array(cols);
+                surface.data.values[y]=row;
+                for (var x=0; x<cols; x++)
+                    row[x] = 500+ Math.cos(0.001*x*y)*(x*x-y*y);
+            }
+            surface.dataChanged=true; // <-- force recalculating pixel colors
+
             // Add Surface series to Chart:
             Chart1.addSeries(surface);
-            // Looking at chart with the camera facing the x-axis, where x is width,
-            // z is height, and y is distance.
-            //
-            //        | z
-            //        |
-            //        |
-            //        |0
-            //       / \
-            //      /   \
-            //   x /     \ y
-            //
-            // Then the array of arrays corresponds thusly:
-            //
-            //  0     y
-            //  <----->
-            // [[z,z,z], ^ 0
-            //  [z,z,z], |
-            //  [z,z,z]] v x
-            //
-            //
-            var values = [];
-            var maxX = 0, maxY = 0;
-            // Calculate maxes of coordinates
-            for (var i = 0, len = data.length; i < len; i++) {
-                var d = data[i].DP3;
-                maxX = Math.max(maxX,d[0]);
-                maxY = Math.max(maxY,d[1]);
-            }
-            // Create array to fill in
-            var rows = new Array(maxX + 1);
-            for (var x = 0; x <= maxX; x++) {
-                rows[x] = new Array(maxY + 1);
-                for (var y = 0; y <= maxY; y++) {
-                    rows[x][y] = 0;
-                }
-            }
-            // Fill in the multi-dimensional array
-            for (var i = 0, len = data.length; i < len; i++) {
-                var d = data[i].DP3;
-                var x = d[0], y = d[1], z = d[2];
-                rows[x][y] = z;
-            }
-            surface.data.values = rows;
-            surface.dataChanged=true;
+            // // Looking at chart with the camera facing the x-axis, where x is width,
+            // // z is height, and y is distance.
+            // //
+            // //        | z
+            // //        |
+            // //        |
+            // //        |0
+            // //       / \
+            // //      /   \
+            // //   x /     \ y
+            // //
+            // // Then the array of arrays corresponds thusly:
+            // //
+            // //  0     y
+            // //  <----->
+            // // [[z,z,z], ^ 0
+            // //  [z,z,z], |
+            // //  [z,z,z]] v x
+            // //
+            // //
+            // var values = [];
+            // var maxX = 0, maxY = 0;
+            // // Calculate maxes of coordinates
+            // for (var i = 0, len = data.length; i < len; i++) {
+            //     var d = data[i].DP3;
+            //     maxX = Math.max(maxX,d[0]);
+            //     maxY = Math.max(maxY,d[1]);
+            // }
+            // // Create array to fill in
+            // var rows = new Array(maxX + 1);
+            // for (var x = 0; x <= maxX; x++) {
+            //     rows[x] = new Array(maxY + 1);
+            //     for (var y = 0; y <= maxY; y++) {
+            //         rows[x][y] = 0;
+            //     }
+            // }
+            // // Fill in the multi-dimensional array
+            // for (var i = 0, len = data.length; i < len; i++) {
+            //     var d = data[i].DP3;
+            //     var x = d[0], y = d[1], z = d[2];
+            //     rows[x][y] = z;
+            // }
+            // surface.data.values = rows;
+            // surface.dataChanged=true;
             // Cosmetics:
             Chart1.title.text="NURBS";
             Chart1.walls.back.size=0.2;
