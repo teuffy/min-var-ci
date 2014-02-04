@@ -2,6 +2,7 @@
 module DataAnalysis.Application.Import
     ( module X
     , startAnalysis
+    , Handler
     ) where
 
 import           Control.Applicative            as X
@@ -31,3 +32,5 @@ instance IsString Day where
         case readMay s of
             Nothing -> error $ "Invalid date literal in source code: " ++ show s
             Just d -> d
+
+type Handler = HandlerT App IO

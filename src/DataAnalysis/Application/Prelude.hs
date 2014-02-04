@@ -5,7 +5,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module DataAnalysis.Application.Prelude
-  (runAnalysisApp)
+  ( runAnalysisApp
+  , runAnalysisAppRaw
+  )
   where
 
 import Data.Conduit (Conduit)
@@ -16,12 +18,8 @@ import Yesod.Static
 
 import DataAnalysis.Application.Types
 import DataAnalysis.Application.Dispatch ()
-
-#if FPHC
+import Data.ByteString (ByteString)
 import Network.HTTP.Client (defaultManagerSettings, newManager)
-#else
-import Network.HTTP.Client (defaultManagerSettings, newManager)
-#endif
 
 -- | Run the analysis web app.
 runAnalysisApp :: (PersistEntity b,HasForm params)
@@ -36,5 +34,21 @@ runAnalysisApp title analysis = do
     (App man
          title
          (getSomeAnalysis analysis)
+         s
+         now)
+
+-- | Run the analysis web app.
+runAnalysisAppRaw :: HasForm params
+                  => Text
+                  -> (params -> Conduit ByteString (HandlerT App IO) DataPoint)
+                  -> IO ()
+runAnalysisAppRaw title analysis = do
+  s <- static "static"
+  man <- newManager defaultManagerSettings
+  now <- getCurrentTime
+  warpEnv
+    (App man
+         title
+         (getSomeAnalysisRaw analysis)
          s
          now)

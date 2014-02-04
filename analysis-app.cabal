@@ -81,10 +81,12 @@ library
                      hashable,
                      safe,
                      double-conversion,
+                     transformers-base,
+                     primitive,
                      template-haskell
 
 executable analysis-app
-  hs-source-dirs:    src/main src
+  hs-source-dirs:    src src/Skel/Kmer
   ghc-options:       -Wall -O2
   main-is:           Main.hs
   build-depends:     xml-conduit >= 1.1.0.0,
@@ -127,4 +129,6 @@ executable analysis-app
                      containers,
                      double-conversion,
                      template-haskell,
+                     transformers-base,
+                     primitive,
                      basic-prelude
