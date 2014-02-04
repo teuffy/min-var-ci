@@ -45,7 +45,7 @@ getExportR ident typ = do
            $= toXmlRows renderDataPoint
            $= renderBuilder settings)
         where settings = def
-  where fname ext = T.pack (show ident) <> "-export." <> ext
+  where fname ext = ident <> "-export." <> ext
 
 -- | Render a data point to XML events.
 renderDataPoint :: Monad m => DataPoint -> Producer m Event
