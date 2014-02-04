@@ -256,3 +256,4 @@ generateSkelFile IWData{..} dir modul = do
 analysisParentModule :: IWAnalysis -> Text
 analysisParentModule IWCustomAnalysis   = "Skel.Custom"
 analysisParentModule IWRSIAnalysis      = "Skel.RSI"
+analysisParentModule IWKmerAnalysis     = "Skel.Kmer"

@@ -463,6 +463,7 @@ formatTitle IWStockDataFeedFormat   =   "Stock data feed"
 analysisTitle :: IWAnalysis -> Text
 analysisTitle IWCustomAnalysis = "Custom"
 analysisTitle IWRSIAnalysis = "RSI"
+analysisTitle IWKmerAnalysis = "Kmer"
 
 defaultPossibleTypes :: [IWType]
 defaultPossibleTypes =

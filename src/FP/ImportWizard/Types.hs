@@ -70,4 +70,5 @@ data IWType
 data IWAnalysis
     =   IWCustomAnalysis
     |   IWRSIAnalysis
+    |   IWKmerAnalysis
     deriving (Read, Show, Eq, Enum, Bounded)
