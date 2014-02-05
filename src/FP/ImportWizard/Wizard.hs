@@ -173,7 +173,7 @@ wizardConfig defaultData pageHandler = WizardConfig
     ,   wcInitialPage               =   minBound
     ,   wcPageHandler               =   pageHandler
     ,   wcGetPageTitle              =   \_ -> return Nothing
-    ,   wcGetNextPage               =   defaultGetNextPage
+    ,   wcGetNextPage               =   defaultGetNextWizardPage
     ,   wcGetShowNavigation         =   defaultGetWizardShowNavigation
     ,   wcGetNavigationLabel        =   defaultGetWizardNavigationLabel
     ,   wcOnNavigation              =   defaultWizardOnNavigation
@@ -195,10 +195,10 @@ defaultWizardOnNavigation _ WizardBack      = navigateWizardBack
 defaultWizardOnNavigation _ WizardNext      = navigateWizardNext
 defaultWizardOnNavigation _ WizardFinish    = navigateWizardFinish
 
-defaultGetNextPage
+defaultGetNextWizardPage
     ::  (MonadHandler handler, WizardPage page)
     =>  page -> WizardT data_ page handler result (Maybe page)
-defaultGetNextPage page =
+defaultGetNextWizardPage page =
     return $ if page == maxBound
         then Nothing
         else Just $ succ page

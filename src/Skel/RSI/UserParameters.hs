@@ -3,11 +3,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Skel.RSI.UserParameters
     ( module Skel.RSI.UserParameters
-    , module UserModel
+    , module Skel.RSI.UserModel
     , module DataAnalysis.Application.Import
     ) where
 
-import UserModel
+import Skel.RSI.UserModel
 import DataAnalysis.Application.Import
 
 -- | Parameters to the analysis.

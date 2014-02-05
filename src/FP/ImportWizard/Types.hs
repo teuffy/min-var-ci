@@ -19,11 +19,11 @@ defaultIwData = IWData
     ,   iwdAnalysis =   IWRSIAnalysis }
         
 data IWData =   IWData
-    {   iwdFormat       :: IWFormatData
+    {   iwdAnalysis     :: IWAnalysis
+    ,   iwdFormat       :: IWFormatData
     ,   iwdSource       :: IWSourceData
     ,   iwdTypes        :: [IWColumn]
     ,   iwdInvalid      :: CsvInvalidRow
-    ,   iwdAnalysis     :: IWAnalysis
     } deriving (Read, Show, Eq)
 
 data IWFormatData = IWFormatData

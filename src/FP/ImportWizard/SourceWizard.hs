@@ -1,3 +1,4 @@
+{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -35,7 +36,39 @@ import           FP.ImportWizard.Temp
 import           FP.ImportWizard.Types
 import           FP.ImportWizard.Wizard
 
+iwConfig :: WizardConfig IWData IWPage (HandlerT App IO) Html
+iwConfig = (wizardConfig defaultIwData iwPageHandler)
+    {   wcGetPageTitle  =   return . Just . iwPageTitle
+    ,   wcGetNextPage   =   iwGetNextPage }
+
+iwGetNextPage :: IWPage -> IWWizard (Maybe IWPage)
+iwGetNextPage page@IWAnalysisPage = do
+    IWData{..} <- getWizardData
+    if iwdAnalysis == IWKmerAnalysis
+        then return $ Just IWReviewPage
+        else defaultGetNextWizardPage page
+iwGetNextPage page = defaultGetNextWizardPage page
+
 iwPageHandler :: IWData -> IWPage -> IWWizard (WizardResult IWData Html)
+
+iwPageHandler oldData IWAnalysisPage = do
+    ((res, formWidget), enctype) <-
+        runWizardForm $ renderTable $ areq (radioFieldList $ optionsListSum analysisTitle)
+            "Analysis: "{fsAttrs = [("onchange", "this.form.submit()")]} (Just $ iwdAnalysis oldData)
+    case res of
+        WizardFormProcess (FormSuccess newAnalysis) ->
+            continueWizard oldData
+                {   iwdAnalysis = newAnalysis
+                ,   iwdFormat   = (iwdFormat oldData){iwfdName = defaultDataTypeName newAnalysis} }
+        WizardFormContinue (FormSuccess newAnalysis) ->
+            continueWizard oldData{iwdAnalysis = newAnalysis}
+        WizardFormContinue _ ->
+            continueWizard oldData
+        WizardFormRender (FormSuccess newAnalysis) -> do
+            putWizardData oldData{iwdAnalysis = newAnalysis}
+            renderIWPage formWidget enctype
+        _ ->
+            renderIWPage formWidget enctype
 
 iwPageHandler oldData IWFormatPage = do
     ((res, formWidget), enctype) <- do
@@ -360,20 +393,6 @@ iwPageHandler oldData IWInvalidPage = do
         _ ->
             renderIWPage formWidget enctype
 
-iwPageHandler oldData IWAnalysisPage = do
-    ((res, formWidget), enctype) <-
-        runWizardForm $ renderTable $ areq (radioFieldList $ optionsListSum analysisTitle)
-            "Analysis: " (Just $ iwdAnalysis oldData)
-    case res of
-        WizardFormProcess (FormSuccess newAnalysis) ->
-            continueWizard oldData{iwdAnalysis = newAnalysis}
-        WizardFormContinue (FormSuccess newAnalysis) ->
-            continueWizard oldData{iwdAnalysis = newAnalysis}
-        WizardFormContinue _ ->
-            continueWizard oldData
-        _ ->
-            renderIWPage formWidget enctype
-
 iwPageHandler data_ IWReviewPage = do
     submitted <- getIsPageSubmitted
     if submitted
@@ -441,11 +460,11 @@ iwPageTitle IWAnalysisPage    =   "Select analysis"
 iwPageTitle IWReviewPage      =   "Review generated code"
 
 data IWPage
-    =   IWFormatPage
+    =   IWAnalysisPage
+    |   IWFormatPage
     |   IWSourcePage
     |   IWTypesPage
     |   IWInvalidPage
-    |   IWAnalysisPage
     |   IWReviewPage
     deriving (Read, Show, Eq, Bounded, Enum)
 
@@ -461,9 +480,14 @@ formatTitle IWPostgresFormat        =   "Postgres database"
 formatTitle IWStockDataFeedFormat   =   "Stock data feed"
 
 analysisTitle :: IWAnalysis -> Text
-analysisTitle IWCustomAnalysis = "Custom"
-analysisTitle IWRSIAnalysis = "RSI"
-analysisTitle IWKmerAnalysis = "Kmer"
+analysisTitle IWCustomAnalysis      = "Custom"
+analysisTitle IWRSIAnalysis         = "RSI"
+analysisTitle IWKmerAnalysis        = "Kmer"
+
+defaultDataTypeName :: IWAnalysis -> Text
+defaultDataTypeName IWCustomAnalysis    = "CustomData"
+defaultDataTypeName IWRSIAnalysis       = "Stock"
+defaultDataTypeName IWKmerAnalysis      = ""
 
 defaultPossibleTypes :: [IWType]
 defaultPossibleTypes =

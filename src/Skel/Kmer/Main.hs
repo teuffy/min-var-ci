@@ -2,7 +2,7 @@
 
 -- | Main entry point to my analysis app.
 
-module Main where
+module Skel.Kmer.Main where
 
 import DataAnalysis.Application.Prelude
 import Skel.Kmer.UserAnalysis

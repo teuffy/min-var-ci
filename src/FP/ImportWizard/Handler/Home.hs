@@ -1,6 +1,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes       #-}
+{-# LANGUAGE RecordWildCards   #-}
 {-# OPTIONS -Wall -Werror -funbox-strict-fields #-}
 
 module FP.ImportWizard.Handler.Home where
@@ -56,12 +57,12 @@ getAddSourceR = do
     case wizardResult of
         WizardCancelled -> redirect HomeR
         WizardSuccess html -> return html
-        WizardFinished data_ -> renderHome $ Just data_
+        WizardFinished data_@IWData{..} ->
+            if Text.null (iwfdName iwdFormat)
+                then createProject data_
+                else renderHome $ Just data_
   where
-    config = (wizardConfig defaultData iwPageHandler)
-        {   wcGetPageTitle = return . Just . iwPageTitle }
-        -- EKB FIXME move next to IWData def
-    defaultData = defaultIwData
+    config = iwConfig
 
 postAddSourceR :: Handler Html
 postAddSourceR = getAddSourceR
@@ -69,7 +70,10 @@ postAddSourceR = getAddSourceR
 postCreateProjectR :: Handler Html
 postCreateProjectR = do
     (postFields, _) <- runRequestBody
-    let data_ = fromMaybe (error "Invalid/missing data") $ (Safe.readMay . Text.unpack) =<< lookup "data" postFields
+    createProject $ fromMaybe (error "Invalid/missing data") $ (Safe.readMay . Text.unpack) =<< lookup "data" postFields
+
+createProject :: IWData -> Handler Html
+createProject data_ = do
     (tempToken, tempPath) <- newTempToken
     liftIO $ do
         FS.createTree tempPath
@@ -88,8 +92,12 @@ postCreateProjectR = do
         runSystem "git" $ gitArgs ++ ["update-server-info"]
     urlRender <- getUrlRender
     redirect $  "https://www.fpcomplete.com/ide?title="
-            ++  urlEncodeText ("Data analysis demo: " ++ iwfdName (iwdFormat data_))
+            ++  urlEncodeText ("Data analysis demo: " ++ projSubtitle data_)
             ++ "&git=" ++  urlEncodeText (urlRender $ GitR tempToken [])
+  where
+    projSubtitle IWData{..} = case iwdAnalysis of
+        IWCustomAnalysis    -> iwfdName iwdFormat
+        _                   -> analysisTitle iwdAnalysis
 
 runSystem :: (MonadIO m) => String -> [String] -> m ()
 runSystem cmd args = liftIO $ do
