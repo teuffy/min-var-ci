@@ -31,6 +31,7 @@ getExportR ident typ = do
       CsvData ->
         attachmentFromSource
           (fname "csv")
+          "text/csv"
           (source
            $= CL.map toMapRow
            $= (writeHeaders settings >> fromCSV settings)
@@ -39,31 +40,39 @@ getExportR ident typ = do
       XmlData ->
         attachmentFromSource
           (fname "xml")
+          "application/xml"
           (source
            $= toXmlRows renderDataPoint
            $= renderBuilder settings)
         where settings = def
-  where fname ext = T.pack (show ident) <> "-export." <> ext
+  where fname ext = ident <> "-export." <> ext
 
 -- | Render a data point to XML events.
 renderDataPoint :: Monad m => DataPoint -> Producer m Event
-renderDataPoint dp =
-  do with "label" (text (_dataLabel dp))
-     with "value" (text (toShortest (_dataValue dp)))
-     maybe (return ()) (with "label" . text) (_dataGroup dp)
+renderDataPoint (DP2 dp) =
+  do with "label" (text (_d2dLabel dp))
+     with "value" (text (toShortest (_d2dValue dp)))
+     maybe (return ()) (with "label" . text) (_d2dGroup dp)
   where text = yield . EventContent . ContentText
+renderDataPoint (DP3 (D3D x y z)) =
+  do with "x" (text (tshow (fromIntegral x)))
+     with "y" (text (tshow (fromIntegral y)))
+     with "z" (text (tshow z))
+  where text = yield . EventContent . ContentText
+        tshow = T.pack . show
 
 --------------------------------------------------------------------------------
 -- Utilities
 
 -- | Output an attachment from a source.
 attachmentFromSource :: Text
+                     -> ContentType
                      -> Source (HandlerT site IO) Builder
                      -> HandlerT site IO TypedContent
-attachmentFromSource filename source = do
+attachmentFromSource filename contentType source = do
   addHeader "content-disposition"
             ("attachment; filename=" <> T.pack (show (T.unpack filename)))
-  respondSource "text/csv"
+  respondSource contentType
                 (source $= CL.map Chunk)
 
 -- | Render to an XML document of rows.

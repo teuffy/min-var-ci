@@ -1,12 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 
--- | Main entry point to an RSI analysis.
+-- | Pharma analysis with 3D nurbs.
 
-module Skel.RSI.Main where
+module Main where
 
 import DataAnalysis.Application.Prelude
-import Skel.RSI.UserAnalysis
+import PharmaUserAnalysis
 
 -- | Start the analysis server with the following configuration.
 main :: IO ()
-main = runAnalysisApp "RSI analysis" userAnalysis
+main = runAnalysisApp "Pharma" userAnalysis
