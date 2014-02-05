@@ -38,7 +38,7 @@ calculateRSI
     -> (UpDown, Vector UpDown)
     -> DataPoint
 calculateRSI alpha (firstUpDown, v) =
-    DP (firstUpDown ^. udDate . shown) rsi' Nothing
+    DP2 (D2D (firstUpDown ^. udDate . shown) rsi' Nothing)
   where
     rs = exponentialMovingAverage udUp   alpha v
        / exponentialMovingAverage udDown alpha v
