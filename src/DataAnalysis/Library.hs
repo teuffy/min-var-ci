@@ -69,7 +69,7 @@ import qualified Data.Text                      as T
 import           Data.Time                      (Day)
 import qualified Data.Vector.Primitive.Mutable  as V
 import           Data.Word                      (Word8)
-import           DataAnalysis.Application.Types (DataPoint (..))
+import           DataAnalysis.Application.Types (DataPoint (..),Data2D (..),Data3D (..))
 
 #if MIN_VERSION_conduit(1, 0, 12)
 import qualified Data.Conduit.Binary            as CB
@@ -301,4 +301,4 @@ kmerDataPoint :: Monad m => Conduit KmerHistogram m DataPoint
 kmerDataPoint =
     CL.map go
   where
-    go (KmerHistogram t i) = DP t (fromIntegral i) Nothing
+    go (KmerHistogram t i) = DP2 (D2D t (fromIntegral i) Nothing)

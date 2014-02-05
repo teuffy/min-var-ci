@@ -134,7 +134,7 @@ library
 executable analysis-app
   hs-source-dirs:    src src/Skel/Kmer
   ghc-options:       -Wall -O2
-  main-is:           PharmaMain.hs
+  main-is:           Main.hs
   build-depends:     xml-conduit >= 1.1.0.0,
                      xml-types >= 0.3.4,
                      basic-prelude >= 0.3.6.0,
