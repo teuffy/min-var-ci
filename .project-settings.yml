@@ -10,3 +10,4 @@ extra-packages: ''
 ghc-args: []
 excluded-modules:
 - Setup.hs
+- src/main/Main.hs
