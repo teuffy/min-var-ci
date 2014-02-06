@@ -19,6 +19,12 @@
           <a href=@{ExportR ident CsvData}>CSV
         <li>
           <a href=@{ExportR ident XmlData}>XML
+        <li>
+          <a href="#">JSON
+        <li>
+          <a href="#">Microsoft Excel
+        <li>
+          <a href="#">Binary
 
 $if not (null messages)
   <div .row>
