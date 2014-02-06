@@ -11,6 +11,18 @@ category:            Analysis
 build-type:          Simple
 cabal-version:       >=1.8
 
+flag build-pharma
+    default:       False
+
+flag build-rsi
+    default:       False
+
+flag build-kmer
+    default:       False
+
+flag build-wizard
+    default:       False
+
 library
   hs-source-dirs:    src
   ghc-options:       -Wall -O2
@@ -29,7 +41,8 @@ library
                      DataAnalysis.Library
                      Data.Conduit.Analysis
                      Data.CSV.Conduit.Persist
-  build-depends:     xml-conduit >= 1.1.0.0,
+  build-depends:     http-types >= 0.8.3,
+                     xml-conduit >= 1.1.0.0,
                      xml-types >= 0.3.4,
                      basic-prelude >= 0.3.6.0,
                      persistent >= 2.0.0,
@@ -87,10 +100,13 @@ library
                      double-conversion
 
 executable analysis-app-kmer
+  if !flag(build-kmer)
+    buildable: False
   hs-source-dirs:    src src/Skel/Kmer
   ghc-options:       -Wall -O2 -main-is Skel.Kmer.Main
   main-is:           Main.hs
-  build-depends:     xml-conduit >= 1.1.0.0,
+  build-depends:     http-types >= 0.8.3,
+                     xml-conduit >= 1.1.0.0,
                      xml-types >= 0.3.4,
                      basic-prelude >= 0.3.6.0,
                      persistent >= 2.0.0,
@@ -112,7 +128,6 @@ executable analysis-app-kmer
                      safe >= 0.3.3,
                      directory >= 1.1.0,
                      base >= 4 && <5,
-                     analysis-app,
                      text,
                      data-default,
                      persistent,
@@ -129,17 +144,19 @@ executable analysis-app-kmer
                      tagged,
                      containers,
                      double-conversion,
-
                      template-haskell,
                      transformers-base,
                      primitive,
                      basic-prelude
 
 executable analysis-app-rsi
+  if !flag(build-rsi)
+    buildable: False
   hs-source-dirs:    src src/Skel/RSI
   ghc-options:       -Wall -O2 -main-is Skel.RSI.Main
   main-is:           Main.hs
-  build-depends:     xml-conduit >= 1.1.0.0,
+  build-depends:     http-types >= 0.8.3,
+                     xml-conduit >= 1.1.0.0,
                      xml-types >= 0.3.4,
                      basic-prelude >= 0.3.6.0,
                      persistent >= 2.0.0,
@@ -161,7 +178,6 @@ executable analysis-app-rsi
                      safe >= 0.3.3,
                      directory >= 1.1.0,
                      base >= 4 && <5,
-                     analysis-app,
                      text,
                      data-default,
                      persistent,
@@ -184,10 +200,13 @@ executable analysis-app-rsi
                      basic-prelude
 
 executable analysis-app-pharma
+  if !flag(build-pharma)
+    buildable: False
   hs-source-dirs:    src src/Skel/Pharma
   ghc-options:       -Wall -O2 -main-is Skel.Pharma.Main
   main-is:           Main.hs
-  build-depends:     xml-conduit >= 1.1.0.0,
+  build-depends:     http-types >= 0.8.3,
+                     xml-conduit >= 1.1.0.0,
                      xml-types >= 0.3.4,
                      basic-prelude >= 0.3.6.0,
                      persistent >= 2.0.0,
@@ -209,7 +228,6 @@ executable analysis-app-pharma
                      safe >= 0.3.3,
                      directory >= 1.1.0,
                      base >= 4 && <5,
-                     analysis-app,
                      text,
                      data-default,
                      persistent,
@@ -232,10 +250,13 @@ executable analysis-app-pharma
                      basic-prelude
 
 executable import-wizard
+  if !flag(build-wizard)
+    buildable: False
   hs-source-dirs:    src
   ghc-options:       -Wall -O2 -main-is FP.ImportWizard.Main
   main-is:           FP/ImportWizard/Main.hs
-  build-depends:     xml-conduit >= 1.1.0.0,
+  build-depends:     http-types >= 0.8.3,
+                     xml-conduit >= 1.1.0.0,
                      xml-types >= 0.3.4,
                      basic-prelude >= 0.3.6.0,
                      persistent >= 2.0.0,
@@ -257,7 +278,6 @@ executable import-wizard
                      safe >= 0.3.3,
                      directory >= 1.1.0,
                      base >= 4 && <5,
-                     analysis-app,
                      text,
                      data-default,
                      persistent,
