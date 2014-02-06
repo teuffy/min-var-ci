@@ -21,8 +21,8 @@ import DataAnalysis.Application.Types
 
 -- | Analyze the imported data with the submitted parameters (if any),
 -- and return the data points from it.
-analysisSource :: Text -> HandlerT App IO (Source Handler DataPoint)
-analysisSource ident = do
+analysisSource :: Text -> IORef Int -> HandlerT App IO (Source Handler DataPoint)
+analysisSource ident countRef = do
     app <- getYesod
     source <- getById ident
     SomeAnalysis{..} <- return (appAnalysis app)
@@ -31,7 +31,6 @@ analysisSource ident = do
           case result of
             FormSuccess (p,_::Text) -> p
             _ -> analysisDefaultParams
-    countRef <- liftIO (newIORef 0)
     return (sourceFile (srcPath source) $= analysisConduit countRef params)
   where graphType =
           areq hiddenField

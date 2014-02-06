@@ -41,7 +41,7 @@ getReviewR ident = do
             _ -> analysisDefaultParams
     countRef <- liftIO (newIORef 0)
     start <- liftIO getCurrentTime
-    !datapoints <- analysisSource ident >>= ($$ CL.consume)
+    !datapoints <- analysisSource ident countRef >>= ($$ CL.consume)
     rowsProcessed :: Int <- liftIO (readIORef countRef)
     now <- liftIO getCurrentTime
     defaultLayout $ do

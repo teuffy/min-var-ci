@@ -12,6 +12,7 @@ import           Data.Conduit
 import qualified Data.Conduit.List as CL
 import           Data.Default
 import           Data.Double.Conversion.Text
+import           Data.IORef (newIORef)
 import           Data.Monoid
 import           Data.Text (Text)
 import qualified Data.Text as T
@@ -26,7 +27,8 @@ import           DataAnalysis.Application.Types
 -- | Export the data source to various data formats.
 getExportR :: Text -> ExportType -> Handler TypedContent
 getExportR ident typ = do
-    source <- analysisSource ident
+    countRef <- liftIO $ newIORef 0
+    source <- analysisSource ident countRef
     case typ of
       CsvData ->
         attachmentFromSource

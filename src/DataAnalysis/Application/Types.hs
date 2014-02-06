@@ -179,12 +179,22 @@ getSomeAnalysis
   :: (PersistEntity b, HasForm params) =>
      (params -> ConduitM b DataPoint (HandlerT App IO) ())
      -> SomeAnalysis
-getSomeAnalysis userAnalysis =
-    getSomeAnalysisRaw ((fromBinary =$=) . userAnalysis)
-  where
-    fromBinary =
-       csvIntoEntities (Proxy :: Proxy b) =$=
-       CL.mapM (either (monadThrow . Ex) return)
+getSomeAnalysis userAnalysis = SomeAnalysis
+    form
+    (\countRef params ->
+       fromBinary =$=
+       CL.iterM (const (liftIO (modifyIORef' countRef (+1)))) =$=
+       userAnalysis params)
+    def
+  where modifyIORef' :: IORef a -> (a -> a) -> IO ()
+        modifyIORef' ref f = do
+          x <- readIORef ref
+          let x' = f x
+          x' `seq` writeIORef ref x'
+
+        fromBinary =
+            csvIntoEntities (Proxy :: Proxy b) =$=
+            CL.mapM (either (monadThrow . Ex) return)
 
 getSomeAnalysisRaw
   :: HasForm params =>
