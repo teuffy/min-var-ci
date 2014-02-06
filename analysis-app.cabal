@@ -128,6 +128,7 @@ executable analysis-app-kmer
                      tagged,
                      containers,
                      double-conversion,
+
                      template-haskell,
                      transformers-base,
                      primitive,
@@ -136,6 +137,54 @@ executable analysis-app-kmer
 executable analysis-app-rsi
   hs-source-dirs:    src src/Skel/RSI
   ghc-options:       -Wall -O2 -main-is Skel.RSI.Main
+  main-is:           Main.hs
+  build-depends:     xml-conduit >= 1.1.0.0,
+                     xml-types >= 0.3.4,
+                     basic-prelude >= 0.3.6.0,
+                     persistent >= 2.0.0,
+                     persistent-template >= 2.0.0,
+                     http-client >= 0.2.0.0,
+                     aeson >= 0.6.2.0,
+                     filepath >= 1.3.0.0,
+                     old-time >= 1.1.0.0,
+                     blaze-markup >= 0.5.1.0,
+                     hamlet >= 1.1.7.0,
+                     hashable >= 1.2.1.0,
+                     semigroups >= 0.12.1,
+                     transformers >= 0.3.0.0,
+                     unordered-containers >= 0.2.3.0,
+                     blaze-builder >= 0.3.3.0,
+                     resourcet >= 0.4.10,
+                     http-conduit >= 2.0.0.0,
+                     yesod-static >= 1.2.2.0,
+                     safe >= 0.3.3,
+                     directory >= 1.1.0,
+                     base >= 4 && <5,
+                     analysis-app,
+                     text,
+                     data-default,
+                     persistent,
+                     persistent-template,
+                     time,
+                     lens,
+                     old-locale,
+                     conduit,
+                     csv-conduit,
+                     bytestring,
+                     lens,
+                     yesod,
+                     vector,
+                     tagged,
+                     containers,
+                     double-conversion,
+                     template-haskell,
+                     transformers-base,
+                     primitive,
+                     basic-prelude
+
+executable analysis-app-pharma
+  hs-source-dirs:    src src/Skel/Pharma
+  ghc-options:       -Wall -O2 -main-is Skel.Pharma.Main
   main-is:           Main.hs
   build-depends:     xml-conduit >= 1.1.0.0,
                      xml-types >= 0.3.4,
