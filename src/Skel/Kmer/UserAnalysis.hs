@@ -14,7 +14,7 @@ import qualified Data.ByteString as S
 --
 -- http://download.fpcomplete.com/tempdocs/data-analysis-library/DataAnalysis-Library.html
 userAnalysis :: KmerParams -> Conduit S.ByteString Handler DataPoint
-userAnalysis (KmerParams count) =
+userAnalysis (KmerParams gcount) =
         startAnalysis
 
         -- Parse the incoming data as FASTA
@@ -28,7 +28,7 @@ userAnalysis (KmerParams count) =
 
         -- Perform a regrouping of the k-mers based on the
         -- given textual conversion.
-    =$= regroupKmers (T.take count)
+    =$= regroupKmers (T.take gcount)
 
         -- Output each k-mer frequency as a datapoint for graphing.
     =$= kmerDataPoint
