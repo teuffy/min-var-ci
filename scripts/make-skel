@@ -18,11 +18,11 @@ cd $t/skel
 
 # EKB TODO perhaps would be better to not include these files in the repo to start with
 #   (move the import wizard to a separate repo, etc)
-rm -rf .git scripts src/FP/ImportWizard data/import-wizard static/flot/examples test src/User*.hs src/main/Main.hs temp src/*UserAnalysis*.hs src/*UserParam*.hs src/main/*Main*.hs 
+rm -rf .git scripts src/FP/ImportWizard data/import-wizard static/flot/examples test src/User*.hs src/main/Main.hs temp src/*UserAnalysis*.hs src/*UserParam*.hs
 rmdir src/FP
 test -d data && rmdir data
 
-perl -i -pe 's/DataAnalysis.Application.Types.Stock/UserModel/' src/main/Main*.hs src/User*.hs src/DataAnalysis/Application/Import.hs
+perl -i -pe 's/DataAnalysis.Application.Types.Stock/UserModel/' src/main/Main.hs src/User*.hs src/DataAnalysis/Application/Import.hs
 
 git init
 git add --all
