@@ -10,6 +10,7 @@ module FP.ImportWizard.Foundation where
 
 import           BasicPrelude
 import           Yesod
+import           Text.Lucius (luciusFile)
 
 import           FP.ImportWizard.Temp (TempToken)
 
@@ -18,7 +19,9 @@ data App = App
 
 instance Yesod App where
     defaultLayout w = do
-        p <- widgetToPageContent w
+        p <- widgetToPageContent $ do
+            w
+            toWidget $(luciusFile "templates/default-layout.lucius")
         mmsg <- getMessage
         giveUrlRenderer [hamlet|
             $newline never
@@ -29,6 +32,16 @@ instance Yesod App where
                     <link rel=stylesheet href="//netdna.bootstrapcdn.com/twitter-bootstrap/2.3.2/css/bootstrap-combined.min.css">
                     ^{pageHead p}
                 <body>
+                    <div class="navbar navbar-inverse navbar-fixed-top">
+                      <div class="navbar-inner">
+                        <div class="container">
+                          <button type="button" class="btn btn-navbar" data-toggle="collapse" data-target=".nav-collapse">
+                            <span class="icon-bar">
+                            <span class="icon-bar">
+                            <span class="icon-bar">
+                          <a class="brand" href="http://fpcomplete.com/">
+                            <img src="//fpcomplete.com/static/img/ide-logo.png" title="FP Complete">
+
                     <div class="container">
                         <h1>#{pageTitle p}
                         $maybe msg <- mmsg
