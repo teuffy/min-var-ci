@@ -69,7 +69,7 @@ import qualified Data.Text                      as T
 import           Data.Time                      (Day)
 import qualified Data.Vector.Primitive.Mutable  as V
 import           Data.Word                      (Word8)
-import           DataAnalysis.Application.Types (DataPoint (..),Data2D (..),Data3D (..))
+import           DataAnalysis.Application.Types (DataPoint (..),Data2D (..))
 
 #if MIN_VERSION_conduit(1, 0, 12)
 import qualified Data.Conduit.Binary            as CB

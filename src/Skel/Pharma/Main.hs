@@ -2,10 +2,10 @@
 
 -- | Pharma analysis with 3D nurbs.
 
-module Main where
+module Skel.Pharma.Main where
 
 import DataAnalysis.Application.Prelude
-import PharmaUserAnalysis
+import Skel.Pharma.UserAnalysis
 
 -- | Start the analysis server with the following configuration.
 main :: IO ()

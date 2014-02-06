@@ -1,9 +1,10 @@
 -- This module controls the parameters that the analysis accepts from a user.
 -- In the near future, this will be replaced by a higher level DSL.
 {-# LANGUAGE OverloadedStrings #-}
-module PharmaUserParams (PharmaParams (..), module X) where
+module Skel.Pharma.UserParameters (PharmaParams (..), module X) where
 
-import DataAnalysis.Application.PharmaImport as X
+import Skel.Pharma.UserModel as X
+import DataAnalysis.Application.Import as X
 
 -- | Parameters to the analysis.
 data PharmaParams = PharmaParams
