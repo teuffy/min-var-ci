@@ -14,22 +14,28 @@
 module DataAnalysis.Application.Foundation where
 
 import qualified Control.Exception as E
-import Control.Monad
-import Data.Default
-import Data.List
-import Data.Text (Text,pack)
-import Data.Time
-import Data.Time.Clock.POSIX
-import DataAnalysis.Application.Types
-import System.Directory
-import System.FilePath
-import System.IO
-import System.Time
-import Text.Blaze
-import Text.Hamlet
-import Yesod
-import Yesod.Default.Util
-import Yesod.Static
+import           Control.Monad
+import           Data.Conduit
+import           Data.Conduit.Binary (sinkFile)
+import           Data.Default
+import           Data.List
+import           Data.Text (Text,pack)
+import qualified Data.Text as T
+import           Data.Time
+import           Data.Time.Clock.POSIX
+import           DataAnalysis.Application.Types
+import           Network.HTTP.Client
+import           Network.HTTP.Conduit
+import           Network.HTTP.Types.Status
+import           System.Directory
+import           System.FilePath
+import           System.IO
+import           System.Time
+import           Text.Blaze
+import           Text.Hamlet
+import           Yesod
+import           Yesod.Default.Util
+import           Yesod.Static
 
 mkYesodData "App" $(parseRoutesFile "config/routes")
 
@@ -85,12 +91,27 @@ addSource fi = do
   fp <- liftIO getTemporaryFileName
   liftIO (fileMove fi fp)
   return (pack (takeFileName fp))
-  where getTemporaryFileName =
-          do appDir <- getAppDir
-             createDirectoryIfMissing True appDir
-             (fp,h) <- openTempFile appDir "upload.csv"
-             hClose h
-             return fp
+
+-- | Import a source from a URL.
+addUrlSource :: Text -> Handler (Maybe Text)
+addUrlSource url = do
+  mgr <- fmap appManager getYesod
+  request <- parseUrl (T.unpack url)
+  response <- http request mgr
+  case statusCode (responseStatus response) of
+    200 -> do fp <- liftIO getTemporaryFileName
+              responseBody response $$+- sinkFile fp
+              return (Just (pack (takeFileName fp)))
+    _ -> return Nothing
+
+-- | Get a temporary filename for an upload.
+getTemporaryFileName :: IO FilePath
+getTemporaryFileName =
+  do appDir <- getAppDir
+     createDirectoryIfMissing True appDir
+     (fp,h) <- openTempFile appDir "upload.csv"
+     hClose h
+     return fp
 
 -- | Get a source by its id.
 getById :: Text -> Handler DataSource
@@ -103,16 +124,21 @@ getById ident = do
 -- | Get all sources.
 getList :: Handler [DataSource]
 getList =
-  liftIO (do dir <- getAppDir
-             list <- fmap (filter (not . all (=='.')))
-                          (E.catch (getDirectoryContents dir)
-                                   (\(_::E.IOException) -> return []))
-             forM list
-                  (\item ->
-                     do let fp = dir ++ "/" ++ item
-                        time <- liftIO (fmap utcTimeFromClockTime
-                                             (getModificationTime fp))
-                        return (DataSource (pack item) fp time)))
+  fmap (sortBy (flip compare)) (liftIO getItems)
+  where
+    getItems =
+      do dir <- getAppDir
+         list <- fmap (filter isSource)
+                      (E.catch (getDirectoryContents dir)
+                               (\(_::E.IOException) -> return []))
+         forM list (makeDataSource dir)
+    makeDataSource dir item =
+      do let fp = dir ++ "/" ++ item
+         time <- liftIO (fmap utcTimeFromClockTime
+                              (getModificationTime fp))
+         return (DataSource (pack item) fp time)
+    isSource fp = not (all (=='.') fp) && extensionIs fp "csv"
+    extensionIs fp ext = takeWhile (/='.') (reverse fp) == reverse ext
 
 -- | Get the directory used for uploads.
 getAppDir :: IO FilePath
@@ -121,6 +147,8 @@ getAppDir =
      let appDir = tmp ++ "/analysis-app"
      return appDir
 
+-- | An unfortunate conversion function that is necessary in this
+-- version of the directory package.
 utcTimeFromClockTime :: ClockTime -> UTCTime
 utcTimeFromClockTime (TOD seconds picoseconds) =
   posixSecondsToUTCTime . fromRational

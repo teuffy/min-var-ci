@@ -22,6 +22,7 @@ import           Data.Conduit
 import qualified Data.Conduit.List as CL
 import           Data.Data
 import           Data.Default
+import           Data.Function
 import           Data.IORef
 import           Data.Proxy
 import           Data.Time
@@ -144,6 +145,10 @@ data DataSource = DataSource
   , srcPath      :: !FilePath
   , srcTimestamp :: !UTCTime
   }
+
+instance Eq DataSource where (==) = on (==) srcPath
+
+instance Ord DataSource where compare = on compare srcTimestamp
 
 sourceURL :: (MonadResource m, MonadBaseControl IO m, ManagerReader m)
           => String -> Source m ByteString

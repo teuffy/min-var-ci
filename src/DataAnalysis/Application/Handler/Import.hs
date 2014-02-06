@@ -5,6 +5,7 @@
 module DataAnalysis.Application.Handler.Import where
 
 import Data.Default
+import Data.Text (Text)
 import Yesod
 import Yesod.Default.Util
 
@@ -12,12 +13,7 @@ import DataAnalysis.Application.Foundation
 
 -- | Show the import form.
 getImportR :: Handler Html
-getImportR = do
-    (formWidget, formEncType) <- generateFormPost uploadForm
-    currentRoute <- getCurrentRoute
-    defaultLayout $ do
-        setTitle "File Processor"
-        $(widgetFileReload def "import")
+getImportR = getImport Nothing
 
 -- | Add the given file as a data source and redirect to the new
 -- source.
@@ -28,8 +24,27 @@ postImportR = do
     FormSuccess fi -> do
       i <- addSource fi
       redirect (ReviewR i)
-    _ -> return ()
-  redirect ImportR
+    _ -> do ((result', _), _) <- runFormPost urlForm
+            case result' of
+              FormSuccess url -> do
+                mi <- addUrlSource url
+                case mi of
+                  Just i -> redirect (ReviewR i)
+                  Nothing -> getImport (Just "Unable to download from URL.")
+              _ -> redirect ImportR
+
+-- | Import form, takes maybe an error message.
+getImport :: Maybe Text -> Handler Html
+getImport merror = do
+  (uploadFormWidget, uploadFormEncType) <- generateFormPost uploadForm
+  (urlFormWidget, urlFormEncType) <- generateFormPost urlForm
+  currentRoute <- getCurrentRoute
+  defaultLayout $ do
+      setTitle "File Processor"
+      $(widgetFileReload def "import")
 
 -- | Upload form.
 uploadForm = renderDivs $ fileAFormReq "source"
+
+-- | URL form.
+urlForm = renderDivs $ areq textField "Address" Nothing
