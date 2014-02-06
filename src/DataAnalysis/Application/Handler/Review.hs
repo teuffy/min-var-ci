@@ -10,6 +10,7 @@
 module DataAnalysis.Application.Handler.Review where
 
 import           Control.Applicative
+import           Control.Lens
 import           Data.Aeson
 import           Data.Conduit
 import qualified Data.Conduit.List as CL
@@ -47,6 +48,7 @@ getReviewR ident = do
     defaultLayout $ do
         setTitle title
         let datapointsJson = toHtml (decodeUtf8 (encode (take 100 datapoints)))
+            messages = toListOf (traverse . _DPM) datapoints
             generationTime = diffUTCTime now start
         $(widgetFileReload def "review")
   where graphType =

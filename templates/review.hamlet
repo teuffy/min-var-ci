@@ -20,6 +20,16 @@
         <li>
           <a href=@{ExportR ident XmlData}>XML
 
+$if not (null messages)
+  <div .row>
+    <div .span12 #chart-span>
+       <div .well>
+         <h2>Messages
+         <ul>
+           $forall message <- messages
+             <li>
+               #{toHtml message}
+
 <div .row>
   <div .span12 #chart-span>
      <div .well>

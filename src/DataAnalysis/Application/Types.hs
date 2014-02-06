@@ -17,16 +17,12 @@ import           Control.Exception (Exception)
 import           Control.Lens.TH
 import           Control.Monad.Trans.Resource
 import           Data.ByteString (ByteString)
-import           Data.CSV.Conduit
 import           Data.CSV.Conduit.Persist
 import           Data.Conduit
 import qualified Data.Conduit.List as CL
 import           Data.Data
 import           Data.Default
-import           Data.Double.Conversion.Text
 import           Data.IORef
-import qualified Data.Map                             as Map
-import           Data.Maybe
 import           Data.Proxy
 import           Data.Time
 import           Network.HTTP.Conduit (Manager, http, parseUrl, responseBody)
@@ -36,11 +32,6 @@ import           Yesod.Static
 data ParseError = ColumnNotFound !Text | CouldNotReadColumn !Text
     deriving (Show, Typeable)
 instance Exception ParseError
-
-class FromMapRow a where
-    fromMapRow :: MapRow Text -> Either ParseError a
-class ToMapRow a where
-    toMapRow :: a -> MapRow Text
 
 -- | The type of visualization used to show some data.
 data VisualizationType
@@ -79,12 +70,6 @@ data Data2D = D2D
 
 $(makeLenses ''Data2D)
 
-instance ToMapRow Data2D where
-    toMapRow (D2D label value g) =
-      Map.fromList [("label",label)
-                   ,("value",toShortest value)
-                   ,("group",fromMaybe "" g)]
-
 instance ToJSON Data2D where
   toJSON (D2D label value group') =
     case group' of
@@ -101,12 +86,6 @@ data Data3D = D3D
 
 $(makeLenses ''Data3D)
 
-instance ToMapRow Data3D where
-    toMapRow (D3D x y z) =
-      Map.fromList [("x",toShortest (fromIntegral x))
-                   ,("y",toShortest (fromIntegral y))
-                   ,("z",toShortest z)]
-
 instance ToJSON Data3D where
   toJSON (D3D x y z) =
     toJSON [toJSON x
@@ -114,17 +93,17 @@ instance ToJSON Data3D where
            ,toJSON z]
 
 data DataPoint
-  = DP2 Data2D
+  = DPM Text
+  | DP2 Data2D
   | DP3 Data3D
   deriving (Show)
+
+$(makePrisms ''DataPoint)
 
 instance ToJSON DataPoint where
   toJSON (DP2 d) = object ["DP2" .= toJSON d]
   toJSON (DP3 d) = object ["DP3" .= toJSON d]
-
-instance ToMapRow DataPoint where
-  toMapRow (DP2 d) = toMapRow d
-  toMapRow (DP3 d) = toMapRow d
+  toJSON (DPM t) = object ["DPM" .= toJSON t]
 
 class ManagerReader m where
     askManager :: m Manager

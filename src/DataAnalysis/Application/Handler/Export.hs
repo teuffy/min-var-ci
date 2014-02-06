@@ -13,6 +13,9 @@ import qualified Data.Conduit.List as CL
 import           Data.Default
 import           Data.Double.Conversion.Text
 import           Data.IORef (newIORef)
+import           Data.Map (Map)
+import qualified Data.Map as Map
+import           Data.Maybe
 import           Data.Monoid
 import           Data.Text (Text)
 import qualified Data.Text as T
@@ -35,7 +38,7 @@ getExportR ident typ = do
           (fname "csv")
           "text/csv"
           (source
-           $= CL.map toMapRow
+           $= CL.mapMaybe dataPointCSV
            $= (writeHeaders settings >> fromCSV settings)
            $= CL.map fromByteString)
         where settings = def
@@ -44,24 +47,50 @@ getExportR ident typ = do
           (fname "xml")
           "application/xml"
           (source
-           $= toXmlRows renderDataPoint
+           $= toXmlRows dataPointXML
            $= renderBuilder settings)
         where settings = def
   where fname ext = ident <> "-export." <> ext
 
+--------------------------------------------------------------------------------
+-- CSV export
+
+-- | Convert a data point to maybe a row. Not all data points are
+-- data… points.
+dataPointCSV :: DataPoint -> Maybe (Map Text Text)
+dataPointCSV (DP2 (D2D label value g)) =
+  Just
+    (Map.fromList
+       [("label",label)
+       ,("value",toShortest value)
+       ,("group",fromMaybe "" g)])
+dataPointCSV (DP3 (D3D x y z)) =
+  Just
+    (Map.fromList
+       [("x",toShortest (fromIntegral x))
+       ,("y",toShortest (fromIntegral y))
+       ,("z",toShortest z)])
+dataPointCSV DPM{} =
+  Nothing
+
+--------------------------------------------------------------------------------
+-- XML export
+
 -- | Render a data point to XML events.
-renderDataPoint :: Monad m => DataPoint -> Producer m Event
-renderDataPoint (DP2 dp) =
+dataPointXML :: Monad m => DataPoint -> Producer m Event
+dataPointXML (DP2 dp) =
   do with "label" (text (_d2dLabel dp))
      with "value" (text (toShortest (_d2dValue dp)))
      maybe (return ()) (with "label" . text) (_d2dGroup dp)
   where text = yield . EventContent . ContentText
-renderDataPoint (DP3 (D3D x y z)) =
+dataPointXML (DP3 (D3D x y z)) =
   do with "x" (text (tshow (fromIntegral x)))
      with "y" (text (tshow (fromIntegral y)))
      with "z" (text (tshow z))
   where text = yield . EventContent . ContentText
         tshow = T.pack . show
+dataPointXML DPM{} =
+  return ()
 
 --------------------------------------------------------------------------------
 -- Utilities
