@@ -48,7 +48,7 @@ renderHome maybeData = defaultLayout $ do
                     <input type=submit value="Add another data source" onclick="alert('Not supported in demo!'); return false">
                     <br><br>
                     <input type=hidden name=data value=#{show data_}>
-                    <input type=submit value="Create project in IDE">
+                    <input type=submit value="Create project">
     |]
 
 getAddSourceR :: Handler Html
