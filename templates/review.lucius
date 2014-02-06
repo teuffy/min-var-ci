@@ -10,3 +10,6 @@
 .code {
   font-family: 'ubuntu mono',monospace;
 }
+.dropdown-menu [disabled] {
+  color: #999;
+}

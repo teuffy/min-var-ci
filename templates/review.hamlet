@@ -20,11 +20,11 @@
         <li>
           <a href=@{ExportR ident XmlData}>XML
         <li>
-          <a href="#">JSON
+          <a disabled="disabled" href="javascript:alert('Not implemented yet!')">JSON
         <li>
-          <a href="#">Microsoft Excel
+          <a disabled="disabled" href="javascript:alert('Not implemented yet!')">Microsoft Excel
         <li>
-          <a href="#">Binary
+          <a disabled="disabled" href="javascript:alert('Not implemented yet!')">Binary
 
 $if not (null messages)
   <div .row>
