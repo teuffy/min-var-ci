@@ -144,7 +144,8 @@ data DataSource = DataSource
   { srcName      :: !Text
   , srcPath      :: !FilePath
   , srcTimestamp :: !UTCTime
-  }
+  , srcUrl       :: !(Maybe String)
+  } deriving (Show)
 
 instance Eq DataSource where (==) = on (==) srcPath
 

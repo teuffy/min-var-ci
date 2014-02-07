@@ -1,30 +1,41 @@
 <h1>#{title}
 
-<div .row>
-  <div .span6>
-    <div .well>
-      <h2>Parameters
-      <form method=get action=@{ReviewR ident} enctype=#{enctype}>
-        ^{widget}
-        <button>Update
-  <div .span6>
-    <p>#{toHtml (showCount rowsProcessed)} records processed in #{toHtml (show generationTime)}.
-    <h2>Export
-    <div .btn-group>
-      <a .btn .dropdown-toggle data-toggle="dropdown" href="#">
-        Download
-        <span .caret>
-      <ul .dropdown-menu>
-        <li>
-          <a href=@{ExportR ident CsvData}>CSV
-        <li>
-          <a href=@{ExportR ident XmlData}>XML
-        <li>
-          <a disabled="disabled" href="javascript:alert('Not implemented yet!')">JSON
-        <li>
-          <a disabled="disabled" href="javascript:alert('Not implemented yet!')">Microsoft Excel
-        <li>
-          <a disabled="disabled" href="javascript:alert('Not implemented yet!')">Binary
+<form method=get action=@{ReviewR ident} enctype=#{enctype} #parameters-form>
+  <div .row>
+    <div .span6>
+      <div .well>
+        <h2>Parameters
+          ^{widget}
+    <div .span6>
+      <p>#{toHtml (showCount rows)} records processed in #{toHtml (show timing)}.
+      <p>
+        <div .btn-group>
+          <a .btn .dropdown-toggle data-toggle="dropdown" href="#">
+            Download
+            <span .caret>
+          <ul .dropdown-menu>
+            <li>
+              <a href=@{ExportR ident CsvData}>CSV
+            <li>
+              <a href=@{ExportR ident XmlData}>XML
+            <li>
+              <a disabled="disabled" href="javascript:alert('Not implemented yet!')">JSON
+            <li>
+              <a disabled="disabled" href="javascript:alert('Not implemented yet!')">Microsoft Excel
+            <li>
+              <a disabled="disabled" href="javascript:alert('Not implemented yet!')">Binary
+      $maybe url <- murl
+        <p>
+          Imported from web address:
+          <code>
+            <a href="#{url}">#{url}
+        <div #poll-fields>
+      $nothing
+        <p>
+          Imported from file upload.
+  <button>
+    Update
+
 
 $if not (null messages)
   <div .row>

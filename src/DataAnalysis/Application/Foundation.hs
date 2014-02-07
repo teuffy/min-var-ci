@@ -13,6 +13,7 @@
 
 module DataAnalysis.Application.Foundation where
 
+import           Control.Exception (IOException)
 import qualified Control.Exception as E
 import           Control.Monad
 import           Data.Conduit
@@ -21,6 +22,7 @@ import           Data.Default
 import           Data.List
 import           Data.Text (Text,pack)
 import qualified Data.Text as T
+import qualified Data.Text.IO as T
 import           Data.Time
 import           Data.Time.Clock.POSIX
 import           DataAnalysis.Application.Types
@@ -95,14 +97,21 @@ addSource fi = do
 -- | Import a source from a URL.
 addUrlSource :: Text -> Handler (Maybe Text)
 addUrlSource url = do
+  fp <- liftIO getTemporaryFileName
+  addUrlSourceWithFP url fp
+
+addUrlSourceWithFP :: Text -> FilePath -> Handler (Maybe Text)
+addUrlSourceWithFP url fp = do
   mgr <- fmap appManager getYesod
   request <- parseUrl (T.unpack url)
   response <- http request mgr
   case statusCode (responseStatus response) of
-    200 -> do fp <- liftIO getTemporaryFileName
-              responseBody response $$+- sinkFile fp
-              return (Just (pack (takeFileName fp)))
-    _ -> return Nothing
+    200 ->
+      do responseBody response $$+- sinkFile fp
+         liftIO (T.writeFile (fp ++ ".url") url)
+         return (Just (pack (takeFileName fp)))
+    _ ->
+      return Nothing
 
 -- | Get a temporary filename for an upload.
 getTemporaryFileName :: IO FilePath
@@ -114,12 +123,29 @@ getTemporaryFileName =
      return fp
 
 -- | Get a source by its id.
-getById :: Text -> Handler DataSource
-getById ident = do
+getById :: Text -> Maybe NominalDiffTime -> Handler DataSource
+getById ident mpoll = do
   files <- getList
   case find ((==ident).srcName) files of
     Nothing -> error "No such imported data source."
-    Just s -> return s
+    Just s ->
+      do case mpoll of
+           Nothing -> return s
+           Just poll ->
+             do now <- liftIO getCurrentTime
+                if addUTCTime poll (srcTimestamp s) < now
+                   then updateSource s
+                   else return s
+
+-- | Update the given data source by its URL.
+updateSource :: DataSource -> Handler DataSource
+updateSource s =
+  case srcUrl s of
+    Nothing ->
+      return s
+    Just url ->
+      do _ <- addUrlSourceWithFP (T.pack url) (srcPath s)
+         return s
 
 -- | Get all sources.
 getList :: Handler [DataSource]
@@ -132,13 +158,18 @@ getList =
                       (E.catch (getDirectoryContents dir)
                                (\(_::E.IOException) -> return []))
          forM list (makeDataSource dir)
-    makeDataSource dir item =
-      do let fp = dir ++ "/" ++ item
-         time <- liftIO (fmap utcTimeFromClockTime
-                              (getModificationTime fp))
-         return (DataSource (pack item) fp time)
     isSource fp = not (all (=='.') fp) && extensionIs fp "csv"
     extensionIs fp ext = takeWhile (/='.') (reverse fp) == reverse ext
+
+-- | Make a data source.
+makeDataSource :: String -> String -> IO DataSource
+makeDataSource dir item =
+  do let fp = dir </> item
+     time <- fmap utcTimeFromClockTime
+                  (getModificationTime fp)
+     murl <- fmap (either (const Nothing :: IOException -> Maybe a) Just)
+                  (E.try (readFile (fp ++ ".url")))
+     return (DataSource (pack item) fp time murl)
 
 -- | Get the directory used for uploads.
 getAppDir :: IO FilePath
@@ -151,5 +182,6 @@ getAppDir =
 -- version of the directory package.
 utcTimeFromClockTime :: ClockTime -> UTCTime
 utcTimeFromClockTime (TOD seconds picoseconds) =
-  posixSecondsToUTCTime . fromRational
-     $ fromInteger seconds + fromInteger picoseconds / 1000000000000
+  posixSecondsToUTCTime
+    (fromRational
+       (fromInteger seconds + fromInteger picoseconds / 1000000000000))

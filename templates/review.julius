@@ -1,7 +1,35 @@
 $(function(){
     setupChartChoices();
     setupAutoReload();
+    setupSourcePolling();
 });
+
+// When they check the checkbox in the polling form, refresh the page
+// on an interval with a URL that forces the server to re-download the
+// data source.
+function setupSourcePolling() {
+    var poll = $('#poll').parent();
+    var interval = $('#interval').parent();
+    var timer;
+    $('#poll-fields')
+        .append(poll)
+        .append(interval);
+    var i = Math.max($('#interval').val() * 1,3);
+    $('#interval').val(i);
+    if($('#poll').attr('checked'))  {
+        var stop = $('<button>Stop</button>');
+        $('#poll-fields').append(stop.click(function(){
+            clearTimeout(timer);
+            stop.remove();
+            $('#poll').removeAttr('checked');
+            $('#parameters-form').submit();
+        }));
+        timer = setInterval(function(){
+            if($('#poll').attr('checked'))
+                window.location.reload();
+        },1000 * i);
+    }
+}
 
 // Make the page reload when the server has restarted
 function setupAutoReload() {
@@ -21,10 +49,12 @@ function setupAutoReload() {
 function setupChartChoices(){
     $('#chart').hide();
     var data = $('#placeholder').data('data-points');
-    if (data[0].DP3)
-        tee3dChoices(data);
-    else
-        flotJsChoices(data);
+    if(data[0]) {
+        if (data[0].DP3)
+            tee3dChoices(data);
+        else
+            flotJsChoices(data);
+    }
 }
 
 // Setup teechart 3D choices

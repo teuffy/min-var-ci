@@ -1,15 +1,14 @@
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# OPTIONS -fno-warn-missing-signatures #-}
 
 -- | Review the imported data, and the analysis upon that data.
 
 module DataAnalysis.Application.Handler.Review where
 
-import           Control.Applicative
 import           Control.Lens
 import           Data.Aeson
 import           Data.Conduit
@@ -30,32 +29,42 @@ import           DataAnalysis.Application.Types
 -- | Review the imported data, and the analysis upon that data.
 getReviewR :: Text -> Handler Html
 getReviewR ident = do
-    app <- getYesod
-    source <- getById ident
-    currentRoute <- getCurrentRoute
+  SomeAnalysis{..} <- fmap appAnalysis getYesod
+  (widget,mpoll,enctype) <- runFormWithPolling (makeParamsForm analysisForm)
+  source <- getById ident mpoll
+  (datapoints,rows,timing) <- runBenchedAnalysis ident
+  defaultLayout $ do
     let title = toHtml (formatTime defaultTimeLocale "Import %T" (srcTimestamp source))
-    SomeAnalysis{..} <- return (appAnalysis app)
-    ((result, widget), enctype) <- runFormGet (renderDivs ((,) <$> analysisForm <*> graphType))
-    let params =
-          case result of
-            FormSuccess (p,_::Text) -> p
-            _ -> analysisDefaultParams
-    countRef <- liftIO (newIORef 0)
-    start <- liftIO getCurrentTime
-    !datapoints <- analysisSource ident countRef >>= ($$ CL.consume)
-    rowsProcessed :: Int <- liftIO (readIORef countRef)
-    now <- liftIO getCurrentTime
-    defaultLayout $ do
-        setTitle title
-        let datapointsJson = toHtml (decodeUtf8 (encode (take 100 datapoints)))
-            messages = toListOf (traverse . _DPM) datapoints
-            generationTime = diffUTCTime now start
-        $(widgetFileReload def "review")
-  where graphType =
-          areq hiddenField
-               "" {fsName = l,fsId = l}
-               (Just "Bar")
-          where l = Just "graph_type"
+        datapointsJson = toHtml (decodeUtf8 (encode (take 100 datapoints)))
+        messages = toListOf (traverse . _DPM) datapoints
+        murl = srcUrl source
+    setTitle title
+    $(widgetFileReload def "review")
+
+-- | Run the polling form, this is only activated from JavaScript.
+runFormWithPolling urlForm =
+  do ((r,widget),enctype) <- runFormGet urlForm
+     return
+       (widget
+       ,case r of
+          FormSuccess (_,_,poll,interval) ->
+            if poll
+               then Just (fromInteger interval)
+               else Nothing
+          _ -> Nothing
+       ,enctype)
+
+-- | Run the analysis of the given data source, counting rows
+-- processed and timing the process.
+runBenchedAnalysis :: Text -> Handler ([DataPoint],Int,NominalDiffTime)
+runBenchedAnalysis ident =
+  (do countRef <- liftIO (newIORef 0)
+      start <- liftIO getCurrentTime
+      !datapoints <- analysisSource ident countRef >>= ($$ CL.consume)
+      rows :: Int <- liftIO (readIORef countRef)
+      now <- liftIO getCurrentTime
+      let timing = diffUTCTime now start
+      return (datapoints,rows,timing))
 
 -- | Show a number that's counting something so 1234 is 1,234.
 showCount :: (Show n,Integral n) => n -> String

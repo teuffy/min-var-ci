@@ -13,3 +13,15 @@
 .dropdown-menu [disabled] {
   color: #999;
 }
+.poll-form {
+  label { width: 5em; }
+}
+#poll-status {
+  display: none;
+}
+#poll-fields {
+  label {
+    display: inline-block;
+    width: 5em;
+  }
+}
