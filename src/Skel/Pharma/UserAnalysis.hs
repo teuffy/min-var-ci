@@ -17,4 +17,4 @@ import           Skel.Pharma.UserParameters
 -- causes the output of one component to become the input of the next.
 userAnalysis :: MonadIO m => PharmaParams -> Conduit Dummy m DataPoint
 userAnalysis (PharmaParams _min _max) =
-  CL.map (\(Dummy x y z) -> if x `mod` 2 == 0 then DP3 (D3D x y z) else DPM ("Odd: " <> pack (show x)))
+  CL.map (\(Dummy x y z) -> DP3 (D3D x y z))
