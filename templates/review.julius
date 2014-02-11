@@ -11,9 +11,11 @@ function setupSourcePolling() {
     var poll = $('#poll').parent();
     var interval = $('#interval').parent();
     var timer;
-    $('#poll-fields')
-        .append(poll)
-        .append(interval);
+    poll.hide();
+    interval.hide();
+    var fields = $('#poll-fields');
+    fields.append(poll).append(interval);
+    fields.children().show();
     var i = Math.max($('#interval').val() * 1,3);
     $('#interval').val(i);
     if($('#poll').attr('checked'))  {
