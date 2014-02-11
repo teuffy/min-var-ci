@@ -1,3 +1,4 @@
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE CPP                       #-}
@@ -17,9 +18,11 @@ import           Control.Exception (IOException)
 import qualified Control.Exception as E
 import           Control.Monad
 import           Data.Conduit
-import           Data.Conduit.Binary (sinkFile)
+import           Data.Conduit.Binary (sinkFile,sourceFile)
+import           Data.Conduit.Equal
 import           Data.Default
 import           Data.List
+import           Data.Maybe
 import           Data.Text (Text,pack)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
@@ -55,6 +58,7 @@ instance ToMarkup (Route App) where
       ExportR {}   -> "Export"
       StaticR {}   -> "Static"
       StartTimeR{} -> "Start time"
+      ReloadR{}    -> "Reload"
 
 instance Yesod App where
   defaultLayout widget = do
@@ -100,19 +104,6 @@ addUrlSource url = do
   fp <- liftIO getTemporaryFileName
   addUrlSourceWithFP url fp
 
-addUrlSourceWithFP :: Text -> FilePath -> Handler (Maybe Text)
-addUrlSourceWithFP url fp = do
-  mgr <- fmap appManager getYesod
-  request <- parseUrl (T.unpack url)
-  response <- http request mgr
-  case statusCode (responseStatus response) of
-    200 ->
-      do responseBody response $$+- sinkFile fp
-         liftIO (T.writeFile (fp ++ ".url") url)
-         return (Just (pack (takeFileName fp)))
-    _ ->
-      return Nothing
-
 -- | Get a temporary filename for an upload.
 getTemporaryFileName :: IO FilePath
 getTemporaryFileName =
@@ -122,30 +113,36 @@ getTemporaryFileName =
      hClose h
      return fp
 
--- | Get a source by its id.
-getById :: Text -> Maybe NominalDiffTime -> Handler DataSource
+-- | Get a source by its id. Returns whether the source has changed.
+getById :: Text -> Maybe NominalDiffTime -> Handler (DataSource,Bool)
 getById ident mpoll = do
   files <- getList
   case find ((==ident).srcName) files of
     Nothing -> error "No such imported data source."
     Just s ->
       do case mpoll of
-           Nothing -> return s
+           Nothing -> return (s,False)
            Just poll ->
              do now <- liftIO getCurrentTime
                 if addUTCTime poll (srcTimestamp s) < now
                    then updateSource s
-                   else return s
+                   else return (s,False)
 
--- | Update the given data source by its URL.
-updateSource :: DataSource -> Handler DataSource
+-- | Update the given data source by its URL. Returns whether the
+-- source has changed.
+updateSource :: DataSource -> Handler (DataSource,Bool)
 updateSource s =
   case srcUrl s of
     Nothing ->
-      return s
+      return (s,False)
     Just url ->
-      do _ <- addUrlSourceWithFP (T.pack url) (srcPath s)
-         return s
+      do let fp = srcPath s
+             oldfp = srcPath s ++ ".old"
+         liftIO (renameFile fp oldfp)
+         _ <- addUrlSourceWithFP (T.pack url) fp
+         equal <- sourcesEqual (sourceFile fp)
+                               (sourceFile oldfp)
+         return (s,maybe False not equal)
 
 -- | Get all sources.
 getList :: Handler [DataSource]
@@ -160,6 +157,20 @@ getList =
          forM list (makeDataSource dir)
     isSource fp = not (all (=='.') fp) && extensionIs fp "csv"
     extensionIs fp ext = takeWhile (/='.') (reverse fp) == reverse ext
+
+-- | Add a source downloaded from a URL.
+addUrlSourceWithFP :: Text -> FilePath -> Handler (Maybe Text)
+addUrlSourceWithFP url fp = do
+  mgr <- fmap appManager getYesod
+  request <- parseUrl (T.unpack url)
+  response <- http request mgr
+  case statusCode (responseStatus response) of
+    200 ->
+      do responseBody response $$+- sinkFile fp
+         liftIO (T.writeFile (fp ++ ".url") url)
+         return (Just (pack (takeFileName fp)))
+    _ ->
+      return Nothing
 
 -- | Make a data source.
 makeDataSource :: String -> String -> IO DataSource

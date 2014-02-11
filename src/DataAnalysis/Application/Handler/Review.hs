@@ -9,6 +9,7 @@
 
 module DataAnalysis.Application.Handler.Review where
 
+import           Blaze.ByteString.Builder.Char.Utf8
 import           Control.Lens
 import           Data.Aeson
 import           Data.Conduit
@@ -26,12 +27,19 @@ import           Yesod.Default.Util
 import           DataAnalysis.Application.Analyze
 import           DataAnalysis.Application.Types
 
+-- | Reload the data source.
+getReloadR :: Text -> Int -> Handler TypedContent
+getReloadR ident i = do
+  (source,changed) <- getById ident (Just (fromIntegral i))
+  respondSource "text/plain"
+                (CL.sourceList [changed] $= CL.map (Chunk . fromShow))
+
 -- | Review the imported data, and the analysis upon that data.
 getReviewR :: Text -> Handler Html
 getReviewR ident = do
   SomeAnalysis{..} <- fmap appAnalysis getYesod
-  (widget,mpoll,enctype) <- runFormWithPolling (makeParamsForm analysisForm)
-  source <- getById ident mpoll
+  (widget,enctype) <- runFormWithPolling (makeParamsForm analysisForm)
+  (source,_) <- getById ident Nothing
   (datapoints,rows,timing) <- runBenchedAnalysis ident
   defaultLayout $ do
     let title = toHtml (formatTime defaultTimeLocale "Import %T" (srcTimestamp source))
@@ -46,12 +54,6 @@ runFormWithPolling urlForm =
   do ((r,widget),enctype) <- runFormGet urlForm
      return
        (widget
-       ,case r of
-          FormSuccess (_,_,poll,interval) ->
-            if poll
-               then Just (fromInteger interval)
-               else Nothing
-          _ -> Nothing
        ,enctype)
 
 -- | Run the analysis of the given data source, counting rows

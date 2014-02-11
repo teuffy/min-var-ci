@@ -25,7 +25,7 @@ import DataAnalysis.Application.Types
 analysisSource :: Text -> IORef Int -> HandlerT App IO (Source Handler DataPoint)
 analysisSource ident countRef = do
     app <- getYesod
-    source <- getById ident Nothing
+    (source,_) <- getById ident Nothing
     SomeAnalysis{..} <- return (appAnalysis app)
     ((result, _), _) <- runFormGet (makeParamsForm analysisForm)
     let params =
