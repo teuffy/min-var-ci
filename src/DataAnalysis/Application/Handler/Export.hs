@@ -80,7 +80,7 @@ dataPointCSV DPM{} =
 dataPointXML :: Monad m => DataPoint -> Producer m Event
 dataPointXML (DP2 dp) =
   do with "label" (text (_d2dLabel dp))
-     with "value" (text (toShortest (_d2dValue dp)))
+     with "value" (text (tshow (_d2dValue dp)))
      maybe (return ()) (with "label" . text) (_d2dGroup dp)
   where text = yield . EventContent . ContentText
 dataPointXML (DP3 (D3D x y z)) =
@@ -88,9 +88,12 @@ dataPointXML (DP3 (D3D x y z)) =
      with "y" (text (tshow (fromIntegral y)))
      with "z" (text (tshow z))
   where text = yield . EventContent . ContentText
-        tshow = T.pack . show
 dataPointXML DPM{} =
   return ()
+
+-- | Show a double to text.
+tshow :: Double -> Text
+tshow = T.pack . show
 
 --------------------------------------------------------------------------------
 -- Utilities
