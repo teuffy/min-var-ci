@@ -10,6 +10,7 @@ import           Blaze.ByteString.Builder
 import           Data.CSV.Conduit
 import           Data.Conduit
 import qualified Data.Conduit.List as CL
+import           Data.Conduit.Zlib
 import           Data.Default
 import           Data.Double.Conversion.Text
 import           Data.IORef (newIORef)
@@ -42,6 +43,16 @@ getExportR ident typ = do
            $= (writeHeaders settings >> fromCSV settings)
            $= CL.map fromByteString)
         where settings = def
+      CsvDataGzip ->
+        attachmentFromSource
+          (fname "csv.gz")
+          "application/x-gzip"
+          (source
+           $= CL.mapMaybe dataPointCSV
+           $= (writeHeaders settings >> fromCSV settings)
+           $= gzip
+           $= CL.map fromByteString)
+        where settings = def
       XmlData ->
         attachmentFromSource
           (fname "xml")
@@ -50,7 +61,18 @@ getExportR ident typ = do
            $= toXmlRows dataPointXML
            $= renderBuilder settings)
         where settings = def
-  where fname ext = ident <> "-export." <> ext
+      XmlDataGzip ->
+        attachmentFromSource
+          (fname "xml.gz")
+          "application/x-gzip"
+          (source
+           $= toXmlRows dataPointXML
+           $= renderBytes settings
+           $= gzip
+           $= CL.map fromByteString)
+        where settings = def
+  where fname ext =
+          ident <> "-export." <> ext
 
 --------------------------------------------------------------------------------
 -- CSV export

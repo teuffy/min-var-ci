@@ -1,31 +1,32 @@
-{-# LANGUAGE TupleSections #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE CPP                       #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE MultiParamTypeClasses     #-}
+{-# LANGUAGE NamedFieldPuns            #-}
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE RankNTypes                #-}
 {-# LANGUAGE RecordWildCards           #-}
+{-# LANGUAGE ScopedTypeVariables       #-}
 {-# LANGUAGE TemplateHaskell           #-}
+{-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE TypeFamilies              #-}
 {-# OPTIONS -fno-warn-orphans #-}
 
 module DataAnalysis.Application.Foundation where
 
-import           Control.Exception (IOException)
-import qualified Control.Exception as E
+import           Control.Exception              (IOException)
+import qualified Control.Exception              as E
 import           Control.Monad
 import           Data.Conduit
-import           Data.Conduit.Binary (sinkFile,sourceFile)
+import           Data.Conduit.Binary            (sinkFile, sourceFile)
 import           Data.Conduit.Equal
+import           Data.Conduit.Zlib
 import           Data.Default
 import           Data.List
 import           Data.Maybe
-import           Data.Text (Text,pack)
-import qualified Data.Text as T
-import qualified Data.Text.IO as T
+import           Data.Text                      (Text, pack)
+import qualified Data.Text                      as T
+import qualified Data.Text.IO                   as T
 import           Data.Time
 import           Data.Time.Clock.POSIX
 import           DataAnalysis.Application.Types
@@ -39,6 +40,7 @@ import           System.Time
 import           Text.Blaze
 import           Text.Hamlet
 import           Yesod
+import           Yesod.Core.Types
 import           Yesod.Default.Util
 import           Yesod.Static
 
@@ -95,8 +97,18 @@ instance Yesod App where
 addSource :: FileInfo -> Handler Text
 addSource fi = do
   fp <- liftIO getTemporaryFileName
-  liftIO (fileMove fi fp)
-  return (pack (takeFileName fp))
+  let name = pack (takeFileName fp)
+  case fileContentType fi of
+    "text/csv" ->
+      do liftIO (fileMove fi fp)
+         return name
+    "application/gzip" ->
+      do liftIO
+           (runResourceT
+              (fileSourceRaw fi $= ungzip $$ sinkFile fp))
+         return name
+    _ ->
+      error "unsupported file type"
 
 -- | Import a source from a URL.
 addUrlSource :: Text -> Handler (Maybe Text)
@@ -144,6 +156,28 @@ updateSource s =
                                (sourceFile oldfp)
          return (s,maybe False not equal)
 
+-- | Add a source downloaded from a URL.
+addUrlSourceWithFP :: Text -> FilePath -> Handler (Maybe Text)
+addUrlSourceWithFP url fp = do
+  mgr <- fmap appManager getYesod
+  request <- parseUrl (T.unpack url)
+  response <- http request mgr
+  case statusCode (responseStatus response) of
+    200 ->
+      do responseBody response $$+-
+           (fromMaybe (sinkFile fp)
+                      (do typ <- lookup "content-type" (responseHeaders response)
+                          guard (elem typ gzipMimeTypes)
+                          return (ungzip =$ sinkFile fp)))
+         liftIO (T.writeFile (fp ++ ".url") url)
+         return (Just (pack (takeFileName fp)))
+    _ ->
+      return Nothing
+  where gzipMimeTypes =
+          ["application/gzip"
+          ,"application/x-gzip"
+          ,"application/octet-stream"]
+
 -- | Get all sources.
 getList :: Handler [DataSource]
 getList =
@@ -157,20 +191,6 @@ getList =
          forM list (makeDataSource dir)
     isSource fp = not (all (=='.') fp) && extensionIs fp "csv"
     extensionIs fp ext = takeWhile (/='.') (reverse fp) == reverse ext
-
--- | Add a source downloaded from a URL.
-addUrlSourceWithFP :: Text -> FilePath -> Handler (Maybe Text)
-addUrlSourceWithFP url fp = do
-  mgr <- fmap appManager getYesod
-  request <- parseUrl (T.unpack url)
-  response <- http request mgr
-  case statusCode (responseStatus response) of
-    200 ->
-      do responseBody response $$+- sinkFile fp
-         liftIO (T.writeFile (fp ++ ".url") url)
-         return (Just (pack (takeFileName fp)))
-    _ ->
-      return Nothing
 
 -- | Make a data source.
 makeDataSource :: String -> String -> IO DataSource

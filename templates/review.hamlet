@@ -19,6 +19,10 @@
             <li>
               <a href=@{ExportR ident XmlData}>XML
             <li>
+              <a href=@{ExportR ident CsvDataGzip}>CSV (.gz)
+            <li>
+              <a href=@{ExportR ident XmlDataGzip}>XML (.gz)
+            <li>
               <a disabled="disabled" href="javascript:alert('Not implemented yet!')">JSON
             <li>
               <a disabled="disabled" href="javascript:alert('Not implemented yet!')">Microsoft Excel

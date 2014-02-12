@@ -49,14 +49,20 @@ instance Default VisualizationType where
 data ExportType
   = CsvData
   | XmlData
+  | CsvDataGzip
+  | XmlDataGzip
   deriving (Show,Read,Enum,Eq)
 
 instance PathPiece ExportType where
-  fromPathPiece "csv" = Just CsvData
-  fromPathPiece "xml" = Just XmlData
-  fromPathPiece _ = Nothing
-  toPathPiece CsvData = "csv"
-  toPathPiece XmlData = "xml"
+  fromPathPiece "csv"     = Just CsvData
+  fromPathPiece "xml"     = Just XmlData
+  fromPathPiece "csv-gz"  = Just CsvDataGzip
+  fromPathPiece "xml-gz"  = Just XmlDataGzip
+  fromPathPiece _         = Nothing
+  toPathPiece CsvData     = "csv"
+  toPathPiece XmlData     = "xml"
+  toPathPiece CsvDataGzip = "csv-gz"
+  toPathPiece XmlDataGzip = "xml-gz"
 
 -- | Default export type used if none is specified.
 instance Default ExportType where
