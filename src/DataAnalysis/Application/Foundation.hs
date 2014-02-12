@@ -65,7 +65,6 @@ instance ToMarkup (Route App) where
 instance Yesod App where
   defaultLayout widget = do
     pc <- widgetToPageContent $ do
-      addStylesheet $ StaticR flot_jquery_flot_js
       $(widgetFileNoReload def "default-layout")
     currentRoute <- getCurrentRoute
     yesod <- getYesod

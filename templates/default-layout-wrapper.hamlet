@@ -7,6 +7,8 @@ $doctype 5
           href="//netdna.bootstrapcdn.com/twitter-bootstrap/2.3.2/css/bootstrap-combined.min.css">
     <link href="//fonts.googleapis.com/css?family=Actor"
           rel="stylesheet" type="text/css">
+    <link href=@{StaticR font_awesome_css_font_awesome_css}
+          rel="stylesheet" type="text/css">
     <!--[if lte IE 8]><script language="javascript" type="text/javascript" src=@{StaticR excanvas_min_js}></script><![endif]-->
     ^{pageHead pc}
   <body>

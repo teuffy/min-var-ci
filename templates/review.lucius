@@ -25,7 +25,36 @@
     width: 5em;
   }
 }
+
+th.header {
+  cursor: pointer;
+}
+th.header:hover {
+  background: #ddd;
+}
+th.header {
+  span:before {
+    font-family: fontawesome;
+    content: "\f0dc";
+    margin-right: 1em;
+    color: #999;
+  }
+}
 th.headerSortUp {
+  span:before {
+    font-family: fontawesome;
+    content: "\f0de";
+    margin-right: 1em;
+    color: #222;
+  }
+  background: #eee;
 }
 th.headerSortDown {
+  span:before {
+    font-family: fontawesome;
+    content: "\f0dd";
+    margin-right: 1em;
+    color: #222;
+  }
+  background: #eee;
 }

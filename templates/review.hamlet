@@ -109,18 +109,18 @@ $if not (null messages)
                     #{z}
 
 <!-- FlotJS 2D charts -->
-<script src=@{StaticR flot_jquery_js}>
-<script src=@{StaticR flot_jquery_flot_js}>
-<script src=@{StaticR flot_jquery_flot_categories_js}>
-<script src=@{StaticR flot_jquery_flot_pie_js}>
+<script src=@{StaticR js_flot_jquery_js}>
+<script src=@{StaticR js_flot_jquery_flot_js}>
+<script src=@{StaticR js_flot_jquery_flot_categories_js}>
+<script src=@{StaticR js_flot_jquery_flot_pie_js}>
 
 <!-- Teechart ThreeJS-based 3D charts -->
-<script src=@{StaticR three_three_min_js}>
-<script src=@{StaticR three_detector_js}>
-<script src=@{StaticR three_trackball_js}>
+<script src=@{StaticR js_three_three_min_js}>
+<script src=@{StaticR js_three_detector_js}>
+<script src=@{StaticR js_three_trackball_js}>
 <script src=@{StaticR helvetiker_font_helvetiker_regular_typeface_js}>
-<script src=@{StaticR teechart_js}>
-<script src=@{StaticR teechart_3d_js}>
+<script src=@{StaticR js_teechart_teechart_js}>
+<script src=@{StaticR js_teechart_teechart_3d_js}>
 
 <!-- jQuery libraries -->
-<script src=@{StaticR js_jquery_tablesorter_min_js}>
+<script src=@{StaticR js_jquery_jquery_tablesorter_min_js}>
