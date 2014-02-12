@@ -27,6 +27,8 @@ module DataAnalysis.Library
     , movingGroupsOf
       -- ** Lens helpers
     , shown
+      -- * Data correction
+    , smoothDeltaAbnormalities
       -- * Mathematical
     , exponentialMovingAverage
       -- * Financial

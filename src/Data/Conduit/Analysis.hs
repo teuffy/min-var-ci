@@ -5,6 +5,7 @@
 module Data.Conduit.Analysis where
 
 import Data.Conduit
+import Data.List (sort)
 import qualified Data.Conduit.Internal as CI
 import Data.Conduit.Internal (Pipe (..))
 import qualified Control.Lens as L
@@ -23,6 +24,7 @@ import Control.Monad.Trans.Class
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Vector.Mutable as M
 import qualified Data.Vector as V
+import Control.Applicative ((<$>), (<*>))
 
 data GroupByStrategy
     = PreSorted
@@ -122,19 +124,31 @@ groupBy Threads _ _ = error "groupBy Threads not yet implemented"
 data Stats a = Stats
     { statsCount :: !Word64
     , statsTotal :: !a
+    , statsSquareTotal :: !a
     }
     deriving (Functor, Foldable, Traversable)
 instance Num a => Semigroup (Stats a) where
-    Stats c1 t1 <> Stats c2 t2 = Stats (c1 + c2) (t1 + t2)
+    Stats c1 t1 s1 <> Stats c2 t2 s2 = Stats (c1 + c2) (t1 + t2) (s1 + s2)
 
 instance Num a => Monoid (Stats a) where
-    mempty = Stats 0 0
+    mempty = Stats 0 0 0
     mappend = (<>)
 
 statsMean :: Fractional a => Stats a -> Maybe a
 statsMean s
     | statsCount s == 0 = Nothing
     | otherwise = Just $ statsTotal s / fromIntegral (statsCount s)
+
+statsSquareMean :: Fractional a => Stats a -> Maybe a
+statsSquareMean s
+    | statsCount s == 0 = Nothing
+    | otherwise = Just $ statsSquareTotal s / fromIntegral (statsCount s)
+
+statsStdDev :: Floating a => Stats a -> Maybe a
+statsStdDev s = do
+    ex <- statsMean s
+    ex2 <- statsSquareMean s
+    return $ sqrt $ ex2 - (ex * ex)
 
 stats :: (Num a, Monad m)
       => L.Getter i a
@@ -144,8 +158,11 @@ stats lens =
   where
     go i = Stats
         { statsCount = 1
-        , statsTotal = i L.^. lens
+        , statsTotal = a
+        , statsSquareTotal = a * a
         }
+      where
+        a = i L.^. lens
 
 -- | Pack n incoming values into a vector and yield it.
 -- Then read the subsequence value in the stream, drop the
@@ -197,3 +214,49 @@ exponentialMovingAverage lens alpha input
     | otherwise = V.foldl1' step $ fmap (L.^. lens) input
   where
     step accum val = alpha * val + (1 - alpha) * accum
+
+smoothDeltaAbnormalities
+    :: (Monad m, Floating a, Ord a)
+    => L.Lens' i a -- ^ field to correct
+    -> Conduit i m i
+smoothDeltaAbnormalities lens = do
+    vals <- CL.take 20
+    mapM_ leftover $ reverse vals
+    if length vals < 6
+        then CL.map id
+        else do
+            let deltas = drop 2 $ reverse $ drop 2 $ sort $ toDeltas $ map (L.view lens) vals
+            s <- mapM_ yield deltas $$ stats id
+            case (,) <$> statsMean s <*> statsStdDev s of
+                Nothing -> CL.map id
+                Just (mean, stddev) -> smooth mean stddev
+  where
+    toDeltas [] = []
+    toDeltas (x:xs) =
+        go x xs
+      where
+        go x (y:z) = abs (x - y) : go y z
+        go _ [] = []
+
+    smooth mean stddev =
+        await >>= maybe (return ()) (\x -> yield x >> loop x)
+      where
+        loop old = do
+            mnext <- await
+            mafter <- CL.peek
+            case (mnext, mafter) of
+                (Nothing, Nothing) -> return ()
+                (Nothing, Just _) -> return () -- cannot occur
+                (Just next, Nothing) -> yield next
+                (Just next, Just after) -> do
+                    let delta1 = abs $ old L.^. lens - next L.^. lens
+                        delta2 = abs $ after L.^. lens - next L.^. lens
+                        next'
+                            | delta1 > highDelta && delta2 > highDelta =
+                                let replacement = (old L.^. lens + after L.^. lens) / 2
+                                 in L.set lens replacement next
+                            | otherwise = next
+                    yield next'
+                    loop next'
+
+        highDelta = mean + 3 * stddev
