@@ -2,6 +2,7 @@ $(function(){
     setupChartChoices();
     setupAutoReload();
     setupSourcePolling();
+    setupTableSort();
 });
 
 // When they check the checkbox in the polling form, refresh the page
@@ -265,4 +266,9 @@ function makeNurbs(data){
         }
         draw();
     }
+}
+
+// Make tables sortable
+function setupTableSort(){
+    $('.table').tablesorter();
 }

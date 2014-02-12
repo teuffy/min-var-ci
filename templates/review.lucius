@@ -25,3 +25,7 @@
     width: 5em;
   }
 }
+th.headerSortUp {
+}
+th.headerSortDown {
+}

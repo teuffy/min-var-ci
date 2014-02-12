@@ -73,14 +73,20 @@ $if not (null messages)
               $of DPM _
               $of DP2 (D2D label value group')
                 <tr>
-                  <th>Label
-                  <th>Value
-                  <th>Group
+                  <th>
+                    <span>Label
+                  <th>
+                    <span>Value
+                  <th>
+                    <span>Group
               $of DP3 (D3D x y z)
                 <tr>
-                  <th>X
-                  <th>Y
-                  <th>Z
+                  <th>
+                    <span>X
+                  <th>
+                    <span>Y
+                  <th>
+                    <span>Z
         <tbody>
           $forall datapoint <- datapoints
             $case datapoint
@@ -115,3 +121,6 @@ $if not (null messages)
 <script src=@{StaticR helvetiker_font_helvetiker_regular_typeface_js}>
 <script src=@{StaticR teechart_js}>
 <script src=@{StaticR teechart_3d_js}>
+
+<!-- jQuery libraries -->
+<script src=@{StaticR js_jquery_tablesorter_min_js}>
