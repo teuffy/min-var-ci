@@ -36,7 +36,6 @@
   <button>
     Update
 
-
 $if not (null messages)
   <div .row>
     <div .span12 #chart-span>
@@ -63,11 +62,41 @@ $if not (null messages)
   <div .span12>
     <div .well>
       <h2>Analysis datapoints sample
-      <ul>
-        $forall datapoint <- take 20 datapoints
-          <li>
-            <span .code>
-              #{toHtml (show datapoint)}
+      <table .table>
+        <thead>
+          $forall datapoint <- take 1 datapoints
+            $case datapoint
+              $of DPM _
+              $of DP2 (D2D label value group')
+                <tr>
+                  <th>Label
+                  <th>Value
+                  <th>Group
+              $of DP3 (D3D x y z)
+                <tr>
+                  <th>X
+                  <th>Y
+                  <th>Z
+        <tbody>
+          $forall datapoint <- datapoints
+            $case datapoint
+              $of DPM _
+              $of DP2 (D2D label value group')
+                <tr>
+                  <td>
+                    #{label}
+                  <td>
+                    #{value}
+                  <td>
+                    #{fromMaybe "-" group'}
+              $of DP3 (D3D x y z)
+                <tr>
+                  <td>
+                    #{x}
+                  <td>
+                    #{y}
+                  <td>
+                    #{z}
 
 <!-- FlotJS 2D charts -->
 <script src=@{StaticR flot_jquery_js}>

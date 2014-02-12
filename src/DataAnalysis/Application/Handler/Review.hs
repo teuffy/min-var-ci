@@ -16,6 +16,7 @@ import           Data.Conduit
 import qualified Data.Conduit.List as CL
 import           Data.Default
 import           Data.IORef
+import           Data.Maybe
 import           Data.Text (Text)
 import           Data.Text.Lazy.Encoding
 import           Data.Time
