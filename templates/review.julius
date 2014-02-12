@@ -31,7 +31,6 @@ function setupSourcePolling() {
             clearTimeout(timer);
             if($('#poll').attr('checked'))
                 $.get('/reload/' + file + '/' + i,function(refresh){
-                    console.log("Changed: " + refresh);
                     if(refresh == "True")
                         window.location.reload();
                     else
