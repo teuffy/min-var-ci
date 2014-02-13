@@ -19,7 +19,8 @@ import Yesod.Static
 import DataAnalysis.Application.Types
 import DataAnalysis.Application.Dispatch ()
 import Data.ByteString (ByteString)
-import Network.HTTP.Client (defaultManagerSettings, newManager)
+import Network.HTTP.Client (newManager)
+import Network.HTTP.Client.TLS (tlsManagerSettings)
 
 -- | Run the analysis web app.
 runAnalysisApp :: (PersistEntity b,HasForm params)
@@ -28,7 +29,7 @@ runAnalysisApp :: (PersistEntity b,HasForm params)
                -> IO ()
 runAnalysisApp title analysis = do
   s <- static "static"
-  man <- newManager defaultManagerSettings
+  man <- newManager tlsManagerSettings
   now <- getCurrentTime
   warpEnv
     (App man
@@ -44,7 +45,7 @@ runAnalysisAppRaw :: HasForm params
                   -> IO ()
 runAnalysisAppRaw title analysis = do
   s <- static "static"
-  man <- newManager defaultManagerSettings
+  man <- newManager tlsManagerSettings
   now <- getCurrentTime
   warpEnv
     (App man
