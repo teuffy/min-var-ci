@@ -11,6 +11,7 @@
 module DataAnalysis.Application.Analyze where
 
 import Control.Applicative
+import Control.Monad.Reader (ReaderT, runReaderT)
 import Data.Conduit
 import Data.Conduit.Binary (sourceFile)
 import Data.IORef
@@ -22,8 +23,8 @@ import DataAnalysis.Application.Types
 
 -- | Analyze the imported data with the submitted parameters (if any),
 -- and return the data points from it.
-analysisSource :: Text -> IORef Int -> HandlerT App IO (Source Handler DataPoint)
-analysisSource ident countRef = do
+analysisSource :: Text -> IORef Int -> IORef ([FilterLog] -> [FilterLog]) -> HandlerT App IO (Source Handler DataPoint)
+analysisSource ident countRef logRef = do
     app <- getYesod
     (source,_) <- getById ident Nothing
     SomeAnalysis{..} <- return (appAnalysis app)
@@ -32,7 +33,11 @@ analysisSource ident countRef = do
           case result of
             FormSuccess (p,_::Text,_,_) -> p
             _ -> analysisDefaultParams
-    return (sourceFile (srcPath source) $= analysisConduit countRef params)
+        logger fl = modifyIORef logRef (. (fl:))
+    return (sourceFile (srcPath source) $= runReaderC logger (analysisConduit countRef params))
+
+runReaderC :: Monad m => env -> Conduit i (ReaderT env m) o -> Conduit i m o
+runReaderC env = transPipe (`runReaderT` env)
 
 -- | Make the parameters form, includes some hidden fields used by JavaScript magic.
 makeParamsForm analysisForm =

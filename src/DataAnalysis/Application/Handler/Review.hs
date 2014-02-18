@@ -17,7 +17,9 @@ import qualified Data.Conduit.List as CL
 import           Data.Default
 import           Data.IORef
 import           Data.Maybe
-import           Data.Text (Text)
+import           Data.Monoid ((<>))
+import           Data.Text (Text, pack)
+import qualified Data.Text as T
 import           Data.Text.Lazy.Encoding
 import           Data.Time
 import           DataAnalysis.Application.Foundation
@@ -62,12 +64,22 @@ runFormWithPolling urlForm =
 runBenchedAnalysis :: Text -> Handler ([DataPoint],Int,NominalDiffTime)
 runBenchedAnalysis ident =
   (do countRef <- liftIO (newIORef 0)
+      logRef <- liftIO (newIORef id)
       start <- liftIO getCurrentTime
-      !datapoints <- analysisSource ident countRef >>= ($$ CL.consume)
+      !datapoints <- analysisSource ident countRef logRef >>= ($$ CL.consume)
       rows :: Int <- liftIO (readIORef countRef)
+      logs <- fmap ($ []) $ liftIO $ readIORef logRef
       now <- liftIO getCurrentTime
       let timing = diffUTCTime now start
-      return (datapoints,rows,timing))
+      return (datapoints ++ mapMaybe logToDP logs,rows,timing))
+  where
+    logToDP (FilterLog idx msg sfa) =
+        fmap DPM $ case sfa of
+            SFAKeep -> Nothing
+            SFADrop -> Just $ "Dropped record #" <> pack (show idx) <> msg'
+            SFAReplace -> Just $ "Modified record #" <> pack (show idx) <> msg'
+      where
+        msg' = if T.null msg then "" else ": " <> msg
 
 -- | Show a number that's counting something so 1234 is 1,234.
 showCount :: (Show n,Integral n) => n -> String

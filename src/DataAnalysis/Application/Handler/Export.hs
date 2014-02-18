@@ -32,7 +32,8 @@ import           DataAnalysis.Application.Types
 getExportR :: Text -> ExportType -> Handler TypedContent
 getExportR ident typ = do
     countRef <- liftIO $ newIORef 0
-    source <- analysisSource ident countRef
+    logRef <- liftIO $ newIORef id
+    source <- analysisSource ident countRef logRef
     case typ of
       CsvData ->
         attachmentFromSource

@@ -13,7 +13,7 @@ import qualified Data.ByteString as S
 -- For a list of commonly used functions to use in an analysis, see:
 --
 -- http://download.fpcomplete.com/tempdocs/data-analysis-library/DataAnalysis-Library.html
-userAnalysis :: KmerParams -> Conduit S.ByteString Handler DataPoint
+userAnalysis :: KmerParams -> Conduit S.ByteString Analysis DataPoint
 userAnalysis (KmerParams gcount) =
         startAnalysis
 

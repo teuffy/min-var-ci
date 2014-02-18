@@ -3,15 +3,19 @@ module DataAnalysis.Application.Import
     ( module X
     , startAnalysis
     , Handler
+    , Text
+    , Analysis
     ) where
 
 import           Control.Applicative            as X
 import           Control.Lens                   as X
+import           Control.Monad.Reader           (ReaderT)
 import           Data.Conduit                   as X
 import           Data.Conduit.Analysis          as X
 import           Data.Conduit.List              as X (isolate)
 import           Data.Default                   as X
 import           Data.String                    (IsString (fromString))
+import           Data.Text                      (Text)
 import           Data.Time                      as X
 import           Data.Vector                    as X (Vector)
 import           DataAnalysis.Application.Types as X
@@ -25,6 +29,8 @@ import           Yesod                          as X hiding (filterField, (.=),
 -- that each step begins with the @=$=@ operator.
 startAnalysis :: Monad m => Conduit a m a
 startAnalysis = awaitForever yield
+
+type Analysis = ReaderT (FilterLog -> IO ()) Handler
 
 -- orphan instance!
 instance IsString Day where

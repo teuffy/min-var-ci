@@ -11,7 +11,7 @@ import           Skel.Custom.UserParameters
 -- For a list of commonly used functions to use in an analysis, see:
 --
 -- http://download.fpcomplete.com/tempdocs/data-analysis-library/DataAnalysis-Library.html
-userAnalysis :: MonadIO m => CustomParams -> Conduit CustomData m DataPoint
+userAnalysis :: CustomParams -> Conduit CustomData Analysis DataPoint
 userAnalysis (CustomParams dummy) =
     -- Replace with your analysis
     return ()
