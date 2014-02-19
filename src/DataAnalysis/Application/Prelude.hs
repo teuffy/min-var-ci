@@ -15,20 +15,22 @@ import Data.Text (Text)
 import Data.Time
 import Yesod
 import Yesod.Static
+import Control.Monad.Reader (ReaderT)
 
 import DataAnalysis.Application.Types
 import DataAnalysis.Application.Dispatch ()
 import Data.ByteString (ByteString)
-import Network.HTTP.Client (defaultManagerSettings, newManager)
+import Network.HTTP.Client (newManager)
+import Network.HTTP.Client.TLS (tlsManagerSettings)
 
 -- | Run the analysis web app.
 runAnalysisApp :: (PersistEntity b,HasForm params)
                => Text
-               -> (params -> Conduit b (HandlerT App IO) DataPoint)
+               -> (params -> Conduit b (ReaderT (FilterLog -> IO ()) (HandlerT App IO)) DataPoint)
                -> IO ()
 runAnalysisApp title analysis = do
   s <- static "static"
-  man <- newManager defaultManagerSettings
+  man <- newManager tlsManagerSettings
   now <- getCurrentTime
   warpEnv
     (App man
@@ -40,11 +42,11 @@ runAnalysisApp title analysis = do
 -- | Run the analysis web app.
 runAnalysisAppRaw :: HasForm params
                   => Text
-                  -> (params -> Conduit ByteString (HandlerT App IO) DataPoint)
+                  -> (params -> Conduit ByteString (ReaderT (FilterLog -> IO ()) (HandlerT App IO)) DataPoint)
                   -> IO ()
 runAnalysisAppRaw title analysis = do
   s <- static "static"
-  man <- newManager defaultManagerSettings
+  man <- newManager tlsManagerSettings
   now <- getCurrentTime
   warpEnv
     (App man

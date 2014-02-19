@@ -1,3 +1,5 @@
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE CPP                       #-}
 {-# LANGUAGE ConstraintKinds           #-}
 {-# LANGUAGE DeriveDataTypeable        #-}
@@ -27,6 +29,10 @@ module DataAnalysis.Library
     , movingGroupsOf
       -- ** Lens helpers
     , shown
+      -- * Data correction
+    , applyCustomFilter
+    , FilterAction (..)
+    , smoothDeltaAbnormalities
       -- * Mathematical
     , exponentialMovingAverage
       -- * Financial
@@ -57,6 +63,7 @@ import           Control.Applicative            ((<$>), (<*>))
 import           Control.Lens
 import           Control.Monad                  (unless, when)
 import           Control.Monad.Base
+import           Control.Monad.Reader
 import           Control.Monad.Primitive        (PrimMonad)
 import           Data.Bits                      (shiftL, shiftR, (.&.), (.|.))
 import qualified Data.ByteString                as S
@@ -69,7 +76,7 @@ import qualified Data.Text                      as T
 import           Data.Time                      (Day)
 import qualified Data.Vector.Primitive.Mutable  as V
 import           Data.Word                      (Word8)
-import           DataAnalysis.Application.Types (DataPoint (..),Data2D (..))
+import           DataAnalysis.Application.Types (DataPoint (..),Data2D (..),HasCustomFilterCollector (..),FilterLog (..),SimpleFilterAction(..))
 
 #if MIN_VERSION_conduit(1, 0, 12)
 import qualified Data.Conduit.Binary            as CB
@@ -302,3 +309,28 @@ kmerDataPoint =
     CL.map go
   where
     go (KmerHistogram t i) = DP2 (D2D t (fromIntegral i) Nothing)
+
+-- | Apply the given custom filter to all incoming records.
+applyCustomFilter :: (MonadReader env m, HasCustomFilterCollector env, MonadIO m) => (s -> FilterAction s) -> Conduit s m s
+applyCustomFilter f = do
+    env <- lift ask
+    loop (customFilterCollector env) 1
+  where
+    loop logger !idx =
+        await >>= maybe (return ()) go
+      where
+        go s = do
+            case f s of
+                DropRecord txt -> liftIO $ logger $ FilterLog idx txt SFADrop
+                ReplaceWith txt s' -> do
+                    yield s'
+                    liftIO $ logger $ FilterLog idx txt SFAReplace
+                KeepRecord -> do
+                    yield s
+                    liftIO $ logger $ FilterLog idx "" SFAKeep
+            loop logger (succ idx)
+
+data FilterAction s
+    = DropRecord Text
+    | ReplaceWith Text s
+    | KeepRecord

@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE DeriveDataTypeable #-}
@@ -15,6 +16,7 @@ module DataAnalysis.Application.Types where
 
 import           Control.Exception (Exception)
 import           Control.Lens.TH
+import           Control.Monad.Reader
 import           Control.Monad.Trans.Resource
 import           Data.ByteString (ByteString)
 import           Data.CSV.Conduit.Persist
@@ -49,14 +51,20 @@ instance Default VisualizationType where
 data ExportType
   = CsvData
   | XmlData
+  | CsvDataGzip
+  | XmlDataGzip
   deriving (Show,Read,Enum,Eq)
 
 instance PathPiece ExportType where
-  fromPathPiece "csv" = Just CsvData
-  fromPathPiece "xml" = Just XmlData
-  fromPathPiece _ = Nothing
-  toPathPiece CsvData = "csv"
-  toPathPiece XmlData = "xml"
+  fromPathPiece "csv"     = Just CsvData
+  fromPathPiece "xml"     = Just XmlData
+  fromPathPiece "csv-gz"  = Just CsvDataGzip
+  fromPathPiece "xml-gz"  = Just XmlDataGzip
+  fromPathPiece _         = Nothing
+  toPathPiece CsvData     = "csv"
+  toPathPiece XmlData     = "xml"
+  toPathPiece CsvDataGzip = "csv-gz"
+  toPathPiece XmlDataGzip = "xml-gz"
 
 -- | Default export type used if none is specified.
 instance Default ExportType where
@@ -135,7 +143,7 @@ instance RenderMessage App FormMessage where
 -- | Some analysis.
 data SomeAnalysis = forall params. SomeAnalysis
   { analysisForm    :: !(AForm (HandlerT App IO) params)
-  , analysisConduit :: !(IORef Int -> params -> Conduit ByteString (HandlerT App IO) DataPoint)
+  , analysisConduit :: !(IORef Int -> params -> Conduit ByteString (ReaderT (FilterLog -> IO ()) (HandlerT App IO)) DataPoint)
   , analysisDefaultParams :: !params
   }
 
@@ -144,7 +152,8 @@ data DataSource = DataSource
   { srcName      :: !Text
   , srcPath      :: !FilePath
   , srcTimestamp :: !UTCTime
-  }
+  , srcUrl       :: !(Maybe String)
+  } deriving (Show)
 
 instance Eq DataSource where (==) = on (==) srcPath
 
@@ -159,9 +168,28 @@ sourceURL url = do
     (src, _) <- lift $ unwrapResumable $ responseBody res
     src
 
+-- | Class for values which contain the ability to log filter actions.
+class HasCustomFilterCollector a where
+    customFilterCollector :: a -> FilterLog -> IO ()
+instance HasCustomFilterCollector (FilterLog -> IO ()) where
+    customFilterCollector = id
+
+data SimpleFilterAction
+    = SFADrop
+    | SFAReplace
+    | SFAKeep
+    deriving (Show, Eq, Ord)
+
+data FilterLog = FilterLog
+    { flIndex :: !Int
+    , flMsg :: !Text
+    , flAction :: !SimpleFilterAction
+    }
+    deriving (Show, Eq, Ord)
+
 getSomeAnalysis
   :: (PersistEntity b, HasForm params) =>
-     (params -> ConduitM b DataPoint (HandlerT App IO) ())
+     (params -> ConduitM b DataPoint (ReaderT (FilterLog -> IO ()) (HandlerT App IO)) ())
      -> SomeAnalysis
 getSomeAnalysis userAnalysis = SomeAnalysis
     form
@@ -182,7 +210,7 @@ getSomeAnalysis userAnalysis = SomeAnalysis
 
 getSomeAnalysisRaw
   :: HasForm params =>
-     (params -> ConduitM ByteString DataPoint (HandlerT App IO) ())
+     (params -> ConduitM ByteString DataPoint (ReaderT (FilterLog -> IO ()) (HandlerT App IO)) ())
      -> SomeAnalysis
 getSomeAnalysisRaw userAnalysis = SomeAnalysis
     form

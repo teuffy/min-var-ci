@@ -56,7 +56,13 @@ spec = describe "Data.Conduit.Analysis" $ do
             let src = mapM_ yield input
             res <- runResourceT $ src $$ CA.groupBy CA.Coroutines country myAverage =$ sink
             res `shouldBe` expected
+            {-
         it "threads" $ do
             let src = mapM_ yield input
             res <- runResourceT $ src $$ CA.groupBy CA.Threads country myAverage =$ sink
             res `shouldBe` expected
+            -}
+        it "smoothDeltaAbnormalities" $ do
+            let src = mapM_ yield [1.0, 1.2, 1.0, 1.3, 1.4, 85, 1.3, 1.7, 1.3, 1.3, 1.3, 1.3, 1.3, 1.3]
+            res <- runResourceT $ src $$ CA.smoothDeltaAbnormalities id =$ CL.consume
+            res `shouldBe` [1.0, 1.2, 1.0, 1.3, 1.4, 1.35, 1.3, 1.7, 1.3, 1.3, 1.3, 1.3, 1.3, 1.3]

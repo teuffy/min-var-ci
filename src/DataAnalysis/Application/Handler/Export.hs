@@ -10,6 +10,7 @@ import           Blaze.ByteString.Builder
 import           Data.CSV.Conduit
 import           Data.Conduit
 import qualified Data.Conduit.List as CL
+import           Data.Conduit.Zlib
 import           Data.Default
 import           Data.Double.Conversion.Text
 import           Data.IORef (newIORef)
@@ -31,7 +32,8 @@ import           DataAnalysis.Application.Types
 getExportR :: Text -> ExportType -> Handler TypedContent
 getExportR ident typ = do
     countRef <- liftIO $ newIORef 0
-    source <- analysisSource ident countRef
+    logRef <- liftIO $ newIORef id
+    source <- analysisSource ident countRef logRef
     case typ of
       CsvData ->
         attachmentFromSource
@@ -42,6 +44,16 @@ getExportR ident typ = do
            $= (writeHeaders settings >> fromCSV settings)
            $= CL.map fromByteString)
         where settings = def
+      CsvDataGzip ->
+        attachmentFromSource
+          (fname "csv.gz")
+          "application/x-gzip"
+          (source
+           $= CL.mapMaybe dataPointCSV
+           $= (writeHeaders settings >> fromCSV settings)
+           $= gzip
+           $= CL.map fromByteString)
+        where settings = def
       XmlData ->
         attachmentFromSource
           (fname "xml")
@@ -50,7 +62,18 @@ getExportR ident typ = do
            $= toXmlRows dataPointXML
            $= renderBuilder settings)
         where settings = def
-  where fname ext = ident <> "-export." <> ext
+      XmlDataGzip ->
+        attachmentFromSource
+          (fname "xml.gz")
+          "application/x-gzip"
+          (source
+           $= toXmlRows dataPointXML
+           $= renderBytes settings
+           $= gzip
+           $= CL.map fromByteString)
+        where settings = def
+  where fname ext =
+          ident <> "-export." <> ext
 
 --------------------------------------------------------------------------------
 -- CSV export
@@ -80,7 +103,7 @@ dataPointCSV DPM{} =
 dataPointXML :: Monad m => DataPoint -> Producer m Event
 dataPointXML (DP2 dp) =
   do with "label" (text (_d2dLabel dp))
-     with "value" (text (toShortest (_d2dValue dp)))
+     with "value" (text (tshow (_d2dValue dp)))
      maybe (return ()) (with "label" . text) (_d2dGroup dp)
   where text = yield . EventContent . ContentText
 dataPointXML (DP3 (D3D x y z)) =
@@ -88,9 +111,12 @@ dataPointXML (DP3 (D3D x y z)) =
      with "y" (text (tshow (fromIntegral y)))
      with "z" (text (tshow z))
   where text = yield . EventContent . ContentText
-        tshow = T.pack . show
 dataPointXML DPM{} =
   return ()
+
+-- | Show a double to text.
+tshow :: Double -> Text
+tshow = T.pack . show
 
 --------------------------------------------------------------------------------
 -- Utilities

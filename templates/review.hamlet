@@ -1,30 +1,44 @@
 <h1>#{title}
 
-<div .row>
-  <div .span6>
-    <div .well>
-      <h2>Parameters
-      <form method=get action=@{ReviewR ident} enctype=#{enctype}>
-        ^{widget}
-        <button>Update
-  <div .span6>
-    <p>#{toHtml (showCount rowsProcessed)} records processed in #{toHtml (show generationTime)}.
-    <h2>Export
-    <div .btn-group>
-      <a .btn .dropdown-toggle data-toggle="dropdown" href="#">
-        Download
-        <span .caret>
-      <ul .dropdown-menu>
-        <li>
-          <a href=@{ExportR ident CsvData}>CSV
-        <li>
-          <a href=@{ExportR ident XmlData}>XML
-        <li>
-          <a disabled="disabled" href="javascript:alert('Not implemented yet!')">JSON
-        <li>
-          <a disabled="disabled" href="javascript:alert('Not implemented yet!')">Microsoft Excel
-        <li>
-          <a disabled="disabled" href="javascript:alert('Not implemented yet!')">Binary
+<form method=get action=@{ReviewR ident} enctype=#{enctype} #parameters-form data-file=#{srcName source}>
+  <div .row>
+    <div .span6>
+      <div .well>
+        <h2>Parameters
+          ^{widget}
+    <div .span6>
+      <p>#{toHtml (showCount rows)} records processed in #{toHtml (show timing)}.
+      <p>
+        <div .btn-group>
+          <a .btn .dropdown-toggle data-toggle="dropdown" href="#">
+            Download
+            <span .caret>
+          <ul .dropdown-menu>
+            <li>
+              <a href=@{ExportR ident CsvData}>CSV
+            <li>
+              <a href=@{ExportR ident XmlData}>XML
+            <li>
+              <a href=@{ExportR ident CsvDataGzip}>CSV (.gz)
+            <li>
+              <a href=@{ExportR ident XmlDataGzip}>XML (.gz)
+            <li>
+              <a disabled="disabled" href="javascript:alert('Not implemented yet!')">JSON
+            <li>
+              <a disabled="disabled" href="javascript:alert('Not implemented yet!')">Microsoft Excel
+            <li>
+              <a disabled="disabled" href="javascript:alert('Not implemented yet!')">Binary
+      $maybe url <- murl
+        <p>
+          Imported from web address:
+          <code>
+            <a href="#{url}">#{url}
+        <div #poll-fields>
+      $nothing
+        <p>
+          Imported from file upload.
+  <button>
+    Update
 
 $if not (null messages)
   <div .row>
@@ -52,22 +66,61 @@ $if not (null messages)
   <div .span12>
     <div .well>
       <h2>Analysis datapoints sample
-      <ul>
-        $forall datapoint <- take 20 datapoints
-          <li>
-            <span .code>
-              #{toHtml (show datapoint)}
+      <table .table>
+        <thead>
+          $forall datapoint <- take 1 datapoints
+            $case datapoint
+              $of DPM _
+              $of DP2 (D2D label value group')
+                <tr>
+                  <th>
+                    <span>Label
+                  <th>
+                    <span>Value
+                  <th>
+                    <span>Group
+              $of DP3 (D3D x y z)
+                <tr>
+                  <th>
+                    <span>X
+                  <th>
+                    <span>Y
+                  <th>
+                    <span>Z
+        <tbody>
+          $forall datapoint <- datapoints
+            $case datapoint
+              $of DPM _
+              $of DP2 (D2D label value group')
+                <tr>
+                  <td>
+                    #{label}
+                  <td>
+                    #{value}
+                  <td>
+                    #{fromMaybe "-" group'}
+              $of DP3 (D3D x y z)
+                <tr>
+                  <td>
+                    #{x}
+                  <td>
+                    #{y}
+                  <td>
+                    #{z}
 
 <!-- FlotJS 2D charts -->
-<script src=@{StaticR flot_jquery_js}>
-<script src=@{StaticR flot_jquery_flot_js}>
-<script src=@{StaticR flot_jquery_flot_categories_js}>
-<script src=@{StaticR flot_jquery_flot_pie_js}>
+<script src=@{StaticR js_flot_jquery_js}>
+<script src=@{StaticR js_flot_jquery_flot_js}>
+<script src=@{StaticR js_flot_jquery_flot_categories_js}>
+<script src=@{StaticR js_flot_jquery_flot_pie_js}>
 
 <!-- Teechart ThreeJS-based 3D charts -->
-<script src=@{StaticR three_three_min_js}>
-<script src=@{StaticR three_detector_js}>
-<script src=@{StaticR three_trackball_js}>
+<script src=@{StaticR js_three_three_min_js}>
+<script src=@{StaticR js_three_detector_js}>
+<script src=@{StaticR js_three_trackball_js}>
 <script src=@{StaticR helvetiker_font_helvetiker_regular_typeface_js}>
-<script src=@{StaticR teechart_js}>
-<script src=@{StaticR teechart_3d_js}>
+<script src=@{StaticR js_teechart_teechart_js}>
+<script src=@{StaticR js_teechart_teechart_3d_js}>
+
+<!-- jQuery libraries -->
+<script src=@{StaticR js_jquery_jquery_tablesorter_min_js}>

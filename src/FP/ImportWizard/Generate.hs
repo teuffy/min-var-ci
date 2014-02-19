@@ -29,7 +29,7 @@ generateCode iwData@IWData{..} =
     forM    (dataTypeFiles ++
                 [   ("UserAnalysis.hs"      ,   generateSkelFile iwData "skel/src" "UserAnalysis.hs")
                 ,   ("UserParameters.hs"    ,   generateSkelFile iwData "skel/src" "UserParameters.hs")
-                ,   ("main/Main.hs"         ,   generateSkelFile iwData "skel/src" "Main.hs") ]
+                ,   ("Main.hs"              ,   generateSkelFile iwData "skel/src" "Main.hs") ]
             ) $ \(fp,ac) -> do
         (fp,) <$> ac
   where

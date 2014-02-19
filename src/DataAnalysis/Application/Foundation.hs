@@ -1,26 +1,32 @@
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE CPP                       #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE MultiParamTypeClasses     #-}
+{-# LANGUAGE NamedFieldPuns            #-}
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE RankNTypes                #-}
 {-# LANGUAGE RecordWildCards           #-}
+{-# LANGUAGE ScopedTypeVariables       #-}
 {-# LANGUAGE TemplateHaskell           #-}
+{-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE TypeFamilies              #-}
 {-# OPTIONS -fno-warn-orphans #-}
 
 module DataAnalysis.Application.Foundation where
 
-import qualified Control.Exception as E
+import           Control.Exception              (IOException)
+import qualified Control.Exception              as E
 import           Control.Monad
 import           Data.Conduit
-import           Data.Conduit.Binary (sinkFile)
+import           Data.Conduit.Binary            (sinkFile, sourceFile)
+import           Data.Conduit.Equal
+import           Data.Conduit.Zlib
 import           Data.Default
 import           Data.List
-import           Data.Text (Text,pack)
-import qualified Data.Text as T
+import           Data.Maybe
+import           Data.Text                      (Text, pack)
+import qualified Data.Text                      as T
+import qualified Data.Text.IO                   as T
 import           Data.Time
 import           Data.Time.Clock.POSIX
 import           DataAnalysis.Application.Types
@@ -34,6 +40,7 @@ import           System.Time
 import           Text.Blaze
 import           Text.Hamlet
 import           Yesod
+import           Yesod.Core.Types
 import           Yesod.Default.Util
 import           Yesod.Static
 
@@ -53,11 +60,11 @@ instance ToMarkup (Route App) where
       ExportR {}   -> "Export"
       StaticR {}   -> "Static"
       StartTimeR{} -> "Start time"
+      ReloadR{}    -> "Reload"
 
 instance Yesod App where
   defaultLayout widget = do
     pc <- widgetToPageContent $ do
-      addStylesheet $ StaticR flot_jquery_flot_js
       $(widgetFileNoReload def "default-layout")
     currentRoute <- getCurrentRoute
     yesod <- getYesod
@@ -89,20 +96,24 @@ instance Yesod App where
 addSource :: FileInfo -> Handler Text
 addSource fi = do
   fp <- liftIO getTemporaryFileName
-  liftIO (fileMove fi fp)
-  return (pack (takeFileName fp))
+  let name = pack (takeFileName fp)
+  case fileContentType fi of
+    "text/csv" ->
+      do liftIO (fileMove fi fp)
+         return name
+    "application/gzip" ->
+      do liftIO
+           (runResourceT
+              (fileSourceRaw fi $= ungzip $$ sinkFile fp))
+         return name
+    _ ->
+      error "unsupported file type"
 
 -- | Import a source from a URL.
 addUrlSource :: Text -> Handler (Maybe Text)
 addUrlSource url = do
-  mgr <- fmap appManager getYesod
-  request <- parseUrl (T.unpack url)
-  response <- http request mgr
-  case statusCode (responseStatus response) of
-    200 -> do fp <- liftIO getTemporaryFileName
-              responseBody response $$+- sinkFile fp
-              return (Just (pack (takeFileName fp)))
-    _ -> return Nothing
+  fp <- liftIO getTemporaryFileName
+  addUrlSourceWithFP url fp
 
 -- | Get a temporary filename for an upload.
 getTemporaryFileName :: IO FilePath
@@ -113,13 +124,58 @@ getTemporaryFileName =
      hClose h
      return fp
 
--- | Get a source by its id.
-getById :: Text -> Handler DataSource
-getById ident = do
+-- | Get a source by its id. Returns whether the source has changed.
+getById :: Text -> Maybe NominalDiffTime -> Handler (DataSource,Bool)
+getById ident mpoll = do
   files <- getList
   case find ((==ident).srcName) files of
     Nothing -> error "No such imported data source."
-    Just s -> return s
+    Just s ->
+      do case mpoll of
+           Nothing -> return (s,False)
+           Just poll ->
+             do now <- liftIO getCurrentTime
+                if addUTCTime poll (srcTimestamp s) < now
+                   then updateSource s
+                   else return (s,False)
+
+-- | Update the given data source by its URL. Returns whether the
+-- source has changed.
+updateSource :: DataSource -> Handler (DataSource,Bool)
+updateSource s =
+  case srcUrl s of
+    Nothing ->
+      return (s,False)
+    Just url ->
+      do let fp = srcPath s
+             oldfp = srcPath s ++ ".old"
+         liftIO (renameFile fp oldfp)
+         _ <- addUrlSourceWithFP (T.pack url) fp
+         equal <- sourcesEqual (sourceFile fp)
+                               (sourceFile oldfp)
+         return (s,maybe False not equal)
+
+-- | Add a source downloaded from a URL.
+addUrlSourceWithFP :: Text -> FilePath -> Handler (Maybe Text)
+addUrlSourceWithFP url fp = do
+  mgr <- fmap appManager getYesod
+  request <- parseUrl (T.unpack url)
+  response <- http request mgr
+  case statusCode (responseStatus response) of
+    200 ->
+      do responseBody response $$+-
+           (fromMaybe (sinkFile fp)
+                      (do typ <- lookup "content-type" (responseHeaders response)
+                          guard (elem typ gzipMimeTypes)
+                          return (ungzip =$ sinkFile fp)))
+         liftIO (T.writeFile (fp ++ ".url") url)
+         return (Just (pack (takeFileName fp)))
+    _ ->
+      return Nothing
+  where gzipMimeTypes =
+          ["application/gzip"
+          ,"application/x-gzip"
+          ,"application/octet-stream"]
 
 -- | Get all sources.
 getList :: Handler [DataSource]
@@ -132,13 +188,18 @@ getList =
                       (E.catch (getDirectoryContents dir)
                                (\(_::E.IOException) -> return []))
          forM list (makeDataSource dir)
-    makeDataSource dir item =
-      do let fp = dir ++ "/" ++ item
-         time <- liftIO (fmap utcTimeFromClockTime
-                              (getModificationTime fp))
-         return (DataSource (pack item) fp time)
     isSource fp = not (all (=='.') fp) && extensionIs fp "csv"
     extensionIs fp ext = takeWhile (/='.') (reverse fp) == reverse ext
+
+-- | Make a data source.
+makeDataSource :: String -> String -> IO DataSource
+makeDataSource dir item =
+  do let fp = dir </> item
+     time <- fmap utcTimeFromClockTime
+                  (getModificationTime fp)
+     murl <- fmap (either (const Nothing :: IOException -> Maybe a) Just)
+                  (E.try (readFile (fp ++ ".url")))
+     return (DataSource (pack item) fp time murl)
 
 -- | Get the directory used for uploads.
 getAppDir :: IO FilePath
@@ -151,5 +212,6 @@ getAppDir =
 -- version of the directory package.
 utcTimeFromClockTime :: ClockTime -> UTCTime
 utcTimeFromClockTime (TOD seconds picoseconds) =
-  posixSecondsToUTCTime . fromRational
-     $ fromInteger seconds + fromInteger picoseconds / 1000000000000
+  posixSecondsToUTCTime
+    (fromRational
+       (fromInteger seconds + fromInteger picoseconds / 1000000000000))

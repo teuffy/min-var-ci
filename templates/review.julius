@@ -1,7 +1,46 @@
 $(function(){
     setupChartChoices();
     setupAutoReload();
+    setupSourcePolling();
+    setupTableSort();
 });
+
+// When they check the checkbox in the polling form, refresh the page
+// on an interval with a URL that forces the server to re-download the
+// data source.
+function setupSourcePolling() {
+    var poll = $('#poll').parent();
+    var interval = $('#interval').parent();
+    var timer;
+    poll.hide();
+    interval.hide();
+    var fields = $('#poll-fields');
+    fields.append(poll).append(interval);
+    fields.children().show();
+    var i = Math.max($('#interval').val() * 1,3);
+    $('#interval').val(i);
+    var file = $('#parameters-form').data('file');
+    if($('#poll').attr('checked'))  {
+        var stop = $('<button>Stop</button>');
+        $('#poll-fields').append(stop.click(function(){
+            clearTimeout(timer);
+            stop.remove();
+            $('#poll').removeAttr('checked');
+            $('#parameters-form').submit();
+        }));
+        function reload(){
+            clearTimeout(timer);
+            if($('#poll').attr('checked'))
+                $.get('/reload/' + file + '/' + i,function(refresh){
+                    if(refresh == "True")
+                        window.location.reload();
+                    else
+                        setTimeout(reload,1000 * i);
+                });
+        }
+        reload();
+    }
+}
 
 // Make the page reload when the server has restarted
 function setupAutoReload() {
@@ -21,10 +60,12 @@ function setupAutoReload() {
 function setupChartChoices(){
     $('#chart').hide();
     var data = $('#placeholder').data('data-points');
-    if (data[0].DP3)
-        tee3dChoices(data);
-    else
-        flotJsChoices(data);
+    if(data[0]) {
+        if (data[0].DP3)
+            tee3dChoices(data);
+        else
+            flotJsChoices(data);
+    }
 }
 
 // Setup teechart 3D choices
@@ -225,4 +266,9 @@ function makeNurbs(data){
         }
         draw();
     }
+}
+
+// Make tables sortable
+function setupTableSort(){
+    $('.table').tablesorter();
 }
