@@ -1,4 +1,4 @@
-#!/bin/bash -xe
+#!/bin/bash -e
 
 #
 # Note: requires the [AWS CLI](http://aws.amazon.com/cli/) to be installed and configured.
@@ -6,9 +6,16 @@
 # EKB FIXME remove more unnecessary files (or just copy a whitelist?)
 #
 
+if [[ $1 == "" ]]; then
+	echo Usage: $0 filename
+	exit 1
+fi
+
+set -x
 cd $(dirname $0)/..
 s=$(pwd)
 t=$(mktemp -dt data-analysis-demo.XXXXXX)
+us="download.fpcomplete.com/data-analysis-demo/skel/$1.tgz"
 
 git clone . $t/skel
 #mkdir -p $t/skel
@@ -29,7 +36,13 @@ git add --all
 git commit -m "Data analysis scaffolding"
 
 tar czf $t/skel.tgz .
-aws s3 cp $t/skel.tgz s3://download.fpcomplete.com/data-analysis-demo/skel/v2.tgz
+aws --region us-east-1 s3 cp $t/skel.tgz s3://$us
 
 cd $s
 rm -rf $t
+
+set +x
+echo -----------------------------------------------------------------------------
+echo Now edit \`src/FP/ImportWizard/Main.hs\` and set the URL that the skeleton is
+echo downloaded from to \'https://s3.amazonaws.com/$us\'
+echo -----------------------------------------------------------------------------
