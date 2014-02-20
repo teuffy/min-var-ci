@@ -101,6 +101,7 @@ function makeChart(type,data,first){
         var groups = Object.create(null);
         var mode = undefined;
         for (var i = 0, len = data.length; i < len; i++) {
+            if(!data[i].DP2) continue;
             var datum = data[i].DP2;
             var group = data[2] || 0;
             groups[group] = groups[group] || [];
