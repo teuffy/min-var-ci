@@ -41,7 +41,8 @@ library
                      DataAnalysis.Library
                      Data.Conduit.Analysis
                      Data.CSV.Conduit.Persist
-  build-depends:     yesod-core >= 1.2.6.4,
+  build-depends:     http-client-tls >= 0.2.0.0,
+                     yesod-core >= 1.2.6.4,
                      zlib-conduit >= 1.0.0,
                      http-types >= 0.8.3,
                      xml-conduit >= 1.1.0.0,
@@ -99,7 +100,8 @@ library
                      transformers-base,
                      primitive,
                      template-haskell,
-                     double-conversion
+                     double-conversion,
+                     mtl
 
 executable analysis-app-kmer
   if !flag(build-kmer)
@@ -107,7 +109,8 @@ executable analysis-app-kmer
   hs-source-dirs:    src src/Skel/Kmer
   ghc-options:       -Wall -O2 -main-is Skel.Kmer.Main
   main-is:           Main.hs
-  build-depends:     yesod-core >= 1.2.6.4,
+  build-depends:     http-client-tls >= 0.2.0.0,
+                     yesod-core >= 1.2.6.4,
                      zlib-conduit >= 1.0.0,
                      http-types >= 0.8.3,
                      xml-conduit >= 1.1.0.0,
@@ -151,7 +154,8 @@ executable analysis-app-kmer
                      template-haskell,
                      transformers-base,
                      primitive,
-                     basic-prelude
+                     basic-prelude,
+                     mtl
 
 executable analysis-app-rsi
   if !flag(build-rsi)
@@ -159,7 +163,8 @@ executable analysis-app-rsi
   hs-source-dirs:    src src/Skel/RSI
   ghc-options:       -Wall -O2 -main-is Skel.RSI.Main
   main-is:           Main.hs
-  build-depends:     yesod-core >= 1.2.6.4,
+  build-depends:     http-client-tls >= 0.2.0.0,
+                     yesod-core >= 1.2.6.4,
                      zlib-conduit >= 1.0.0,
                      http-types >= 0.8.3,
                      xml-conduit >= 1.1.0.0,
@@ -203,7 +208,8 @@ executable analysis-app-rsi
                      template-haskell,
                      transformers-base,
                      primitive,
-                     basic-prelude
+                     basic-prelude,
+                     mtl
 
 executable analysis-app-pharma
   if !flag(build-pharma)
@@ -211,7 +217,8 @@ executable analysis-app-pharma
   hs-source-dirs:    src src/Skel/Pharma
   ghc-options:       -Wall -O2 -main-is Skel.Pharma.Main
   main-is:           Main.hs
-  build-depends:     yesod-core >= 1.2.6.4,
+  build-depends:     http-client-tls >= 0.2.0.0,
+                     yesod-core >= 1.2.6.4,
                      zlib-conduit >= 1.0.0,
                      http-types >= 0.8.3,
                      xml-conduit >= 1.1.0.0,
@@ -255,7 +262,8 @@ executable analysis-app-pharma
                      template-haskell,
                      transformers-base,
                      primitive,
-                     basic-prelude
+                     basic-prelude,
+                     mtl
 
 executable import-wizard
   if !flag(build-wizard)
@@ -263,7 +271,8 @@ executable import-wizard
   hs-source-dirs:    src
   ghc-options:       -Wall -O2 -main-is FP.ImportWizard.Main
   main-is:           FP/ImportWizard/Main.hs
-  build-depends:     yesod-core >= 1.2.6.4,
+  build-depends:     http-client-tls >= 0.2.0.0,
+                     yesod-core >= 1.2.6.4,
                      zlib-conduit >= 1.0.0,
                      http-types >= 0.8.3,
                      xml-conduit >= 1.1.0.0,
