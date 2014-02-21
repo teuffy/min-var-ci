@@ -174,8 +174,7 @@ addUrlSourceWithFP url fp = do
       return Nothing
   where gzipMimeTypes =
           ["application/gzip"
-          ,"application/x-gzip"
-          ,"application/octet-stream"]
+          ,"application/x-gzip"]
 
 -- | Get all sources.
 getList :: Handler [DataSource]
