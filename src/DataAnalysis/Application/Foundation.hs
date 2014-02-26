@@ -97,17 +97,13 @@ addSource :: FileInfo -> Handler Text
 addSource fi = do
   fp <- liftIO getTemporaryFileName
   let name = pack (takeFileName fp)
-  case fileContentType fi of
-    "text/csv" ->
-      do liftIO (fileMove fi fp)
-         return name
-    "application/gzip" ->
-      do liftIO
-           (runResourceT
-              (fileSourceRaw fi $= ungzip $$ sinkFile fp))
-         return name
-    _ ->
-      error "unsupported file type"
+  if T.isSuffixOf ".gz" (fileName fi)
+     then do liftIO
+               (runResourceT
+                  (fileSourceRaw fi $= ungzip $$ sinkFile fp))
+             return name
+     else do liftIO (fileMove fi fp)
+             return name
 
 -- | Import a source from a URL.
 addUrlSource :: Text -> Handler (Maybe Text)
