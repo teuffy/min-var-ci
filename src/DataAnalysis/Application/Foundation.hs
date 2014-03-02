@@ -21,9 +21,9 @@ import           Data.Conduit
 import           Data.Conduit.Binary            (sinkFile, sourceFile)
 import           Data.Conduit.Equal
 import           Data.Conduit.Zlib
+import           Data.Conduit.Zlib.Auto
 import           Data.Default
 import           Data.List
-import           Data.Maybe
 import           Data.Text                      (Text, pack)
 import qualified Data.Text                      as T
 import qualified Data.Text.IO                   as T
@@ -147,7 +147,7 @@ updateSource s =
              oldfp = srcPath s ++ ".old"
          liftIO (renameFile fp oldfp)
          _ <- addUrlSourceWithFP (T.pack url) fp
-         equal <- sourcesEqual (sourceFile fp)
+         equal <- sourcesEqual (sourceFile fp $= autoUngzip)
                                (sourceFile oldfp)
          return (s,maybe False not equal)
 
@@ -160,17 +160,11 @@ addUrlSourceWithFP url fp = do
   case statusCode (responseStatus response) of
     200 ->
       do responseBody response $$+-
-           (fromMaybe (sinkFile fp)
-                      (do typ <- lookup "content-type" (responseHeaders response)
-                          guard (elem typ gzipMimeTypes)
-                          return (ungzip =$ sinkFile fp)))
+           (autoUngzip =$ sinkFile fp)
          liftIO (T.writeFile (fp ++ ".url") url)
          return (Just (pack (takeFileName fp)))
     _ ->
       return Nothing
-  where gzipMimeTypes =
-          ["application/gzip"
-          ,"application/x-gzip"]
 
 -- | Get all sources.
 getList :: Handler [DataSource]

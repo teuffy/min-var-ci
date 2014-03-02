@@ -33,7 +33,7 @@ import           DataAnalysis.Application.Types
 -- | Reload the data source.
 getReloadR :: Text -> Int -> Handler TypedContent
 getReloadR ident i = do
-  (source,changed) <- getById ident (Just (fromIntegral i))
+  (_,changed) <- getById ident (Just (fromIntegral i))
   respondSource "text/plain"
                 (CL.sourceList [changed] $= CL.map (Chunk . fromShow))
 
