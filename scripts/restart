@@ -2,7 +2,7 @@
 
 mkdir log -p
 echo 'Killing ...'
-killall analysis-app-rsi
+killall analysis-app-mvp
 sleep 0.2
 echo 'Starting ...'
-PORT=1066 dist/build/analysis-app-rsi/analysis-app-rsi & disown
+PORT=1066 dist/build/analysis-app-mvp/analysis-app-mvp 1>/dev/null 2>/dev/null & disown

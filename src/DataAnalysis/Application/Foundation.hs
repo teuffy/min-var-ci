@@ -14,7 +14,7 @@
 
 module DataAnalysis.Application.Foundation where
 
-import           Control.Exception              (IOException)
+
 import qualified Control.Exception              as E
 import           Control.Monad
 import           Data.Conduit
@@ -44,7 +44,22 @@ import           Yesod.Core.Types
 import           Yesod.Default.Util
 import           Yesod.Static
 
+
+
+
+import Database.Persist.Sqlite
+
+import Control.Exception.Lifted hiding (Handler)
+
+
 mkYesodData "App" $(parseRoutesFile "config/routes")
+
+instance YesodPersist App where
+  type YesodPersistBackend App = Connection
+
+  runDB action = do
+    App{appPool} <- getYesod
+    runSqlPool action appPool
 
 instance HasManager App where
     manager = appManager

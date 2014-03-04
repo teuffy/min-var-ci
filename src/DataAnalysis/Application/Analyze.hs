@@ -13,17 +13,20 @@ module DataAnalysis.Application.Analyze where
 import Control.Applicative
 import Control.Monad.Reader (ReaderT, runReaderT)
 import Data.Conduit
-import Data.Conduit.Binary (sourceFile)
+
 import Data.IORef
 import Data.Text (Text)
 import DataAnalysis.Application.Foundation
 import Yesod
-
+-- --
 import DataAnalysis.Application.Types
 
 -- | Analyze the imported data with the submitted parameters (if any),
 -- and return the data points from it.
-analysisSource :: Text -> IORef Int -> IORef ([FilterLog] -> [FilterLog]) -> HandlerT App IO (Source Handler DataPoint)
+analysisSource :: Text
+               -> IORef Int
+               -> IORef ([a] -> c)
+               -> HandlerT App IO (ConduitM () DataPoint (YesodDB App) ())
 analysisSource ident countRef logRef = do
     app <- getYesod
     (source,_) <- getById ident Nothing
@@ -34,7 +37,9 @@ analysisSource ident countRef logRef = do
             FormSuccess (p,_::Text,_,_) -> p
             _ -> analysisDefaultParams
         logger fl = modifyIORef logRef (. (fl:))
-    return (sourceFile (srcPath source) $= runReaderC logger (analysisConduit countRef params))
+    return (case analysisConduit of
+              Left dbconduit ->
+                dbconduit countRef params)
 
 runReaderC :: Monad m => env -> Conduit i (ReaderT env m) o -> Conduit i m o
 runReaderC env = transPipe (`runReaderT` env)

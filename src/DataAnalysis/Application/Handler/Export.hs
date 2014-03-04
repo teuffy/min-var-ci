@@ -7,11 +7,11 @@
 module DataAnalysis.Application.Handler.Export where
 
 import           Blaze.ByteString.Builder
-import           Data.CSV.Conduit
+--
 import           Data.Conduit
 import qualified Data.Conduit.List as CL
-import           Data.Conduit.Zlib
-import           Data.Default
+-- -- import           Data.Conduit.Zlib
+-- -- import           Data.Default
 import           Data.Double.Conversion.Text
 import           Data.IORef (newIORef)
 import           Data.Map (Map)
@@ -21,7 +21,7 @@ import           Data.Monoid
 import           Data.Text (Text)
 import qualified Data.Text as T
 import           Data.XML.Types
-import           Text.XML.Stream.Render
+-- -- import           Text.XML.Stream.Render
 import           Yesod
 
 import           DataAnalysis.Application.Foundation
@@ -34,7 +34,8 @@ getExportR ident typ = do
     countRef <- liftIO $ newIORef 0
     logRef <- liftIO $ newIORef id
     source <- analysisSource ident countRef logRef
-    case typ of
+    error "TODO: Export"
+    {-case typ of
       CsvData ->
         attachmentFromSource
           (fname "csv")
@@ -71,7 +72,7 @@ getExportR ident typ = do
            $= renderBytes settings
            $= gzip
            $= CL.map fromByteString)
-        where settings = def
+        where settings = def-}
   where fname ext =
           ident <> "-export." <> ext
 

@@ -66,7 +66,8 @@ runBenchedAnalysis ident =
   (do countRef <- liftIO (newIORef 0)
       logRef <- liftIO (newIORef id)
       start <- liftIO getCurrentTime
-      !datapoints <- analysisSource ident countRef logRef >>= ($$ CL.consume)
+      source <- analysisSource ident countRef logRef
+      !datapoints <- runDB (source $$ CL.consume)
       rows :: Int <- liftIO (readIORef countRef)
       logs <- fmap ($ []) $ liftIO $ readIORef logRef
       now <- liftIO getCurrentTime

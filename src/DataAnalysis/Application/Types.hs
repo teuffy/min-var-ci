@@ -28,6 +28,7 @@ import           Data.Function
 import           Data.IORef
 import           Data.Proxy
 import           Data.Time
+import           Database.Persist.Sqlite
 import           Network.HTTP.Conduit (Manager, http, parseUrl, responseBody)
 import           Yesod
 import           Yesod.Static
@@ -135,6 +136,7 @@ data App = App
   , appAnalysis :: !SomeAnalysis
   , appStatic   :: !Static
   , appStart    :: !UTCTime
+  , appPool     :: !ConnectionPool
   }
 
 instance RenderMessage App FormMessage where
@@ -143,9 +145,17 @@ instance RenderMessage App FormMessage where
 -- | Some analysis.
 data SomeAnalysis = forall params. SomeAnalysis
   { analysisForm    :: !(AForm (HandlerT App IO) params)
-  , analysisConduit :: !(IORef Int -> params -> Conduit ByteString (ReaderT (FilterLog -> IO ()) (HandlerT App IO)) DataPoint)
+  , analysisConduit :: !(Either (PersistentConduit params)
+                                (AnalysisConduit params ByteString))
   , analysisDefaultParams :: !params
+  , analysisUseDb :: !Bool
   }
+
+type AnalysisConduit params a =
+  (IORef Int -> params -> Conduit a (ReaderT (FilterLog -> IO ()) (HandlerT App IO)) DataPoint)
+
+type PersistentConduit params =
+  (IORef Int -> params -> Source (YesodDB App) DataPoint)
 
 -- | An imported data source.
 data DataSource = DataSource
@@ -193,11 +203,12 @@ getSomeAnalysis
      -> SomeAnalysis
 getSomeAnalysis userAnalysis = SomeAnalysis
     form
-    (\countRef params ->
-       fromBinary =$=
-       CL.iterM (const (liftIO (modifyIORef' countRef (+1)))) =$=
-       userAnalysis params)
+    (Right (\countRef params ->
+              fromBinary =$=
+              CL.iterM (const (liftIO (modifyIORef' countRef (+1)))) =$=
+              userAnalysis params))
     def
+    False
   where modifyIORef' :: IORef a -> (a -> a) -> IO ()
         modifyIORef' ref f = do
           x <- readIORef ref
@@ -208,16 +219,32 @@ getSomeAnalysis userAnalysis = SomeAnalysis
             csvIntoEntities (Proxy :: Proxy b) =$=
             CL.mapM (either (monadThrow . Ex) return)
 
+getSomeAnalysisDb userAnalysis = SomeAnalysis
+    form
+    (Left ((\countRef params ->
+              (selectSource [] []) =$=
+              CL.iterM (const (liftIO (modifyIORef' countRef (+1)))) =$=
+              CL.map entityVal =$=
+              userAnalysis params)))
+    def
+    True
+  where modifyIORef' :: IORef a -> (a -> a) -> IO ()
+        modifyIORef' ref f = do
+          x <- readIORef ref
+          let x' = f x
+          x' `seq` writeIORef ref x'
+
 getSomeAnalysisRaw
   :: HasForm params =>
      (params -> ConduitM ByteString DataPoint (ReaderT (FilterLog -> IO ()) (HandlerT App IO)) ())
      -> SomeAnalysis
 getSomeAnalysisRaw userAnalysis = SomeAnalysis
     form
-    (\countRef params ->
-       CL.iterM (const (liftIO (modifyIORef' countRef (+1)))) =$=
-       userAnalysis params)
+    (Right (\countRef params ->
+              CL.iterM (const (liftIO (modifyIORef' countRef (+1)))) =$=
+              userAnalysis params))
     def
+    False
   where modifyIORef' :: IORef a -> (a -> a) -> IO ()
         modifyIORef' ref f = do
           x <- readIORef ref

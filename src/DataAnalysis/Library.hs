@@ -61,7 +61,7 @@ module DataAnalysis.Library
 
 import           Control.Applicative            ((<$>), (<*>))
 import           Control.Lens
-import           Control.Monad                  (unless, when)
+
 import           Control.Monad.Base
 import           Control.Monad.Reader
 import           Control.Monad.Primitive        (PrimMonad)
