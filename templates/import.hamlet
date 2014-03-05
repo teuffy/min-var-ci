@@ -6,15 +6,15 @@ $maybe e <- merror
 
 <p>To import from a file, specify it below and hit Import.
 
-<h3>File
+<!-- <h3>File -->
 
-<form method=post action=@{ImportR} enctype=#{uploadFormEncType} .file-upload>
-  ^{uploadFormWidget}
-  <input type="submit" value="Import">
+<!-- <form method=post action=@{ImportR} enctype=#{uploadFormEncType} .file-upload> -->
+<!--   ^{uploadFormWidget} -->
+<!--   <input type="submit" value="Import"> -->
 
-<h3>Web address
+<h3>Yahoo feed
 
-<p>Importation of a CSV file from a web address is also possible.
+<p>Importation of the CSV file from Yahoo's stock feed.
 
 <form method=post action=@{ImportR} enctype=#{urlFormEncType} .file-upload>
   ^{urlFormWidget}

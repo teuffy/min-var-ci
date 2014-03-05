@@ -26,7 +26,7 @@ import           Data.Default
 import           Data.List
 import           Data.Text                      (Text, pack)
 import qualified Data.Text                      as T
-import qualified Data.Text.IO                   as T
+
 import           Data.Time
 import           Data.Time.Clock.POSIX
 import           DataAnalysis.Application.Types
@@ -43,20 +43,14 @@ import           Yesod
 import           Yesod.Core.Types
 import           Yesod.Default.Util
 import           Yesod.Static
-
-
-
-
 import Database.Persist.Sqlite
 
 import Control.Exception.Lifted hiding (Handler)
-
 
 mkYesodData "App" $(parseRoutesFile "config/routes")
 
 instance YesodPersist App where
   type YesodPersistBackend App = Connection
-
   runDB action = do
     App{appPool} <- getYesod
     runSqlPool action appPool
@@ -68,14 +62,14 @@ instance ToMarkup (Route App) where
   toMarkup r =
     case r of
       HomeR        -> "Home"
-      ReviewR _    -> "Review"
+      ReviewR      -> "Review"
       HelpR        -> "Help"
       ImportR      -> "Import"
-      DatasourcesR -> "Data Sources"
+      {-DatasourcesR -> "Data Sources"-}
       ExportR {}   -> "Export"
       StaticR {}   -> "Static"
       StartTimeR{} -> "Start time"
-      ReloadR{}    -> "Reload"
+      -- ReloadR{}    -> "Reload"
 
 instance Yesod App where
   defaultLayout widget = do
@@ -168,18 +162,27 @@ updateSource s =
 
 -- | Add a source downloaded from a URL.
 addUrlSourceWithFP :: Text -> FilePath -> Handler (Maybe Text)
-addUrlSourceWithFP url fp = do
+addUrlSourceWithFP name fp = do
   mgr <- fmap appManager getYesod
-  request <- parseUrl (T.unpack url)
+  SomeAnalysis{..} <- fmap appAnalysis getYesod
+  request <- parseUrl url
   response <- http request mgr
   case statusCode (responseStatus response) of
     200 ->
       do responseBody response $$+-
            (autoUngzip =$ sinkFile fp)
-         liftIO (T.writeFile (fp ++ ".url") url)
+         {-liftIO (T.writeFile (fp ++ ".url") (T.pack url))-}
+         case analysisImport of
+           Nothing -> return ()
+           Just imp -> runDB (imp name (sourceFile fp))
+         liftIO (removeFile fp)
          return (Just (pack (takeFileName fp)))
     _ ->
       return Nothing
+  where url = "http://chrisdone.com/" ++ T.unpack name ++ ".csv"
+        {-url = "http://ichart.finance.yahoo.com/table.csv?s=" ++
+              T.unpack name ++
+              "&d=3&e=23&f=2010&g=d&a=3&b=12&c=1996&ignore=.csv"-}
 
 -- | Get all sources.
 getList :: Handler [DataSource]

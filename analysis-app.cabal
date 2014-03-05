@@ -36,7 +36,6 @@ library
                      DataAnalysis.Application.Handler.Help
                      DataAnalysis.Application.Handler.Import
                      DataAnalysis.Application.Handler.StartTime
-                     DataAnalysis.Application.Handler.Datasources
                      DataAnalysis.Application.Foundation
                      DataAnalysis.Application.Types
                      DataAnalysis.Application.Dispatch

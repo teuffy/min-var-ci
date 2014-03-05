@@ -33,7 +33,7 @@ getExportR :: Text -> ExportType -> Handler TypedContent
 getExportR ident typ = do
     countRef <- liftIO $ newIORef 0
     logRef <- liftIO $ newIORef id
-    source <- analysisSource ident countRef logRef
+    source <- analysisSource countRef logRef
     error "TODO: Export"
     {-case typ of
       CsvData ->

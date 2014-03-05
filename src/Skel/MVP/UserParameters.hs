@@ -5,26 +5,27 @@ module Skel.MVP.UserParameters
     ( module Skel.MVP.UserParameters
     , module Skel.MVP.UserModel
     , module DataAnalysis.Application.Import
+    , MvpParams(..)
     ) where
 
-import Skel.MVP.UserModel
-import DataAnalysis.Application.Import
+import qualified Data.Text as T
+import           DataAnalysis.Application.Import
+import           Skel.MVP.UserModel
 
 -- | Parameters to the analysis.
 data MvpParams = MvpParams
-    -- { rpSize  :: !Int -- ^ MVP grouping size
-    -- , rpAlpha :: !Double -- ^ alpha for exponential moving average
-    -- , rpBars  :: !Int -- ^ number of bars to display
-    -- }
+  { paramsFrom :: Maybe Day
+  , paramsTo :: Maybe Day
+  }
 
 -- | Make a form for the parameters, uses the 'Default' instance for
 -- the default values.
 instance HasForm MvpParams where
-    form = pure MvpParams
-        -- <$> areq intField "Grouping size" (Just (rpSize def))
-        -- <*> areq doubleField "Alpha (for exponential moving average)" (Just (rpAlpha def))
-        -- <*> areq intField "Number of bars (up to 20 for a readable graph)" (Just (rpBars def))
-
--- | Default values for the parameters.
-instance Default MvpParams where
-  def = MvpParams
+    form = MvpParams <$> date "From" <*> date "To"
+      where date label =
+              fmap Just
+                   (areq (checkMMap (return . parseDate . T.unpack)
+                                    (T.pack . show)
+                                    textField)
+                         label
+                         Nothing)

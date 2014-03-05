@@ -22,7 +22,7 @@ $doctype 5
             <img src="//fpcomplete.com/static/img/ide-logo.png" title="FP Complete">
           <div class="nav-collapse collapse">
             <ul class="nav">
-              $forall route <- [HelpR,ImportR,DatasourcesR]
+              $forall route <- [HelpR,ImportR,ReviewR]
                 $maybe current <- currentRoute
                   $if route == current
                     <li .active>

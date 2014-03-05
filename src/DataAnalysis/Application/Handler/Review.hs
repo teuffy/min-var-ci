@@ -9,7 +9,7 @@
 
 module DataAnalysis.Application.Handler.Review where
 
-import           Blaze.ByteString.Builder.Char.Utf8
+-- -- import           Blaze.ByteString.Builder.Char.Utf8
 import           Control.Lens
 import           Data.Aeson
 import           Data.Conduit
@@ -23,32 +23,24 @@ import qualified Data.Text as T
 import           Data.Text.Lazy.Encoding
 import           Data.Time
 import           DataAnalysis.Application.Foundation
-import           System.Locale
+-- -- import           System.Locale
 import           Yesod
 import           Yesod.Default.Util
 
 import           DataAnalysis.Application.Analyze
 import           DataAnalysis.Application.Types
 
--- | Reload the data source.
-getReloadR :: Text -> Int -> Handler TypedContent
-getReloadR ident i = do
-  (_,changed) <- getById ident (Just (fromIntegral i))
-  respondSource "text/plain"
-                (CL.sourceList [changed] $= CL.map (Chunk . fromShow))
-
 -- | Review the imported data, and the analysis upon that data.
-getReviewR :: Text -> Handler Html
-getReviewR ident = do
+getReviewR :: Handler Html
+getReviewR = do
   SomeAnalysis{..} <- fmap appAnalysis getYesod
   (widget,enctype) <- runFormWithPolling (makeParamsForm analysisForm)
-  (source,_) <- getById ident Nothing
-  (datapoints,rows,timing) <- runBenchedAnalysis ident
+  {-(source,_) <- getById ident Nothing-}
+  (datapoints,rows,timing,errs) <- runBenchedAnalysis
   defaultLayout $ do
-    let title = toHtml (formatTime defaultTimeLocale "Import %T" (srcTimestamp source))
+    let title = "Stock Analysis"
         datapointsJson = toHtml (decodeUtf8 (encode (take 100 datapoints)))
-        messages = toListOf (traverse . _DPM) datapoints
-        murl = srcUrl source
+        messages = toListOf (traverse . _DPM) datapoints ++ errs
     setTitle title
     $(widgetFileReload def "review")
 
@@ -61,18 +53,18 @@ runFormWithPolling urlForm =
 
 -- | Run the analysis of the given data source, counting rows
 -- processed and timing the process.
-runBenchedAnalysis :: Text -> Handler ([DataPoint],Int,NominalDiffTime)
-runBenchedAnalysis ident =
+runBenchedAnalysis :: Handler ([DataPoint],Int,NominalDiffTime,[Text])
+runBenchedAnalysis =
   (do countRef <- liftIO (newIORef 0)
       logRef <- liftIO (newIORef id)
       start <- liftIO getCurrentTime
-      source <- analysisSource ident countRef logRef
+      (source,errs) <- analysisSource countRef logRef
       !datapoints <- runDB (source $$ CL.consume)
       rows :: Int <- liftIO (readIORef countRef)
       logs <- fmap ($ []) $ liftIO $ readIORef logRef
       now <- liftIO getCurrentTime
       let timing = diffUTCTime now start
-      return (datapoints ++ mapMaybe logToDP logs,rows,timing))
+      return (datapoints ++ mapMaybe logToDP logs,rows,timing,errs))
   where
     logToDP (FilterLog idx msg sfa) =
         fmap DPM $ case sfa of
@@ -89,5 +81,5 @@ showCount = reverse . foldr merge "" . zip ("000,00,00,00"::String) . reverse . 
                    | otherwise = [c] ++ rest
 
 -- | Review the imported data, and the analysis upon that data.
-postReviewR :: Text -> Handler Html
+postReviewR :: Handler Html
 postReviewR = getReviewR

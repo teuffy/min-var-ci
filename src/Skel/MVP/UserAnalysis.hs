@@ -35,18 +35,21 @@ userAnalysis params =
                                 (Security _ _ c2) = sec2)
 
 mvpAnalysis :: MvpParams -> Conduit DatePrices (YesodDB App) DataPoint
-mvpAnalysis MvpParams =
+mvpAnalysis _ =
   do rows <- CL.consume
-     let !matrix = fromLists (map toList rows)
-         !rs = returns matrix
-         !portfolio = minVariancePortfolio rs
-     forM_ (zip [1..] (reverse (V.toList portfolio)))
-           (\(i,y) -> yield (DP2 (D2D (pack (show i)) y Nothing)))
+     case rows of
+       [] -> return ()
+       rows ->
+         do let !matrix = fromLists (map toList rows)
+                !rs = returns matrix
+                !portfolio = minVariancePortfolio rs
+            forM_ (zip [1..] (reverse (V.toList portfolio)))
+                  (\(i,y) -> yield (DP2 (D2D (pack (show i)) y Nothing)))
   where toList !(DatePrices _ x y) = [x,y]
 
 returns :: Matrix Price -> Matrix Price
 returns = fromRows . returns' . toRows where
-    returns' ps = map ret $ zip ps (drop 1 ps)
+    returns' ps = map ret (zip ps (drop 1 ps))
     ret (ptt, pttp1) = (pttp1 / ptt) - 1
 
 minVariancePortfolio :: Matrix Price -> Vector Price

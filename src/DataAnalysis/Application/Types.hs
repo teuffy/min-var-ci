@@ -21,12 +21,12 @@ import           Control.Monad.Trans.Resource
 import           Data.ByteString (ByteString)
 import           Data.CSV.Conduit.Persist
 import           Data.Conduit
-import qualified Data.Conduit.List as CL
+-- import qualified Data.Conduit.List as CL
 import           Data.Data
 import           Data.Default
 import           Data.Function
 import           Data.IORef
-import           Data.Proxy
+-- import           Data.Proxy
 import           Data.Time
 import           Database.Persist.Sqlite
 import           Network.HTTP.Conduit (Manager, http, parseUrl, responseBody)
@@ -124,8 +124,8 @@ instance (HasManager a, MonadUnsafeIO m, MonadThrow m, MonadBaseControl IO m, Mo
         x <- getYesod
         return $ manager x
 
-class Default a => HasForm a where
-    form :: RenderMessage site FormMessage => AForm (HandlerT site IO) a
+class HasForm a where
+    form :: (RenderMessage site FormMessage) => AForm (HandlerT site IO) a
 
 staticFiles "static/"
 
@@ -147,6 +147,7 @@ data SomeAnalysis = forall params. SomeAnalysis
   { analysisForm    :: !(AForm (HandlerT App IO) params)
   , analysisConduit :: !(Either (PersistentConduit params)
                                 (AnalysisConduit params ByteString))
+  , analysisImport :: Maybe (Text -> Source (ResourceT IO) ByteString -> YesodDB App ())
   , analysisDefaultParams :: !params
   , analysisUseDb :: !Bool
   }
@@ -196,60 +197,6 @@ data FilterLog = FilterLog
     , flAction :: !SimpleFilterAction
     }
     deriving (Show, Eq, Ord)
-
-getSomeAnalysis
-  :: (PersistEntity b, HasForm params) =>
-     (params -> ConduitM b DataPoint (ReaderT (FilterLog -> IO ()) (HandlerT App IO)) ())
-     -> SomeAnalysis
-getSomeAnalysis userAnalysis = SomeAnalysis
-    form
-    (Right (\countRef params ->
-              fromBinary =$=
-              CL.iterM (const (liftIO (modifyIORef' countRef (+1)))) =$=
-              userAnalysis params))
-    def
-    False
-  where modifyIORef' :: IORef a -> (a -> a) -> IO ()
-        modifyIORef' ref f = do
-          x <- readIORef ref
-          let x' = f x
-          x' `seq` writeIORef ref x'
-
-        fromBinary =
-            csvIntoEntities (Proxy :: Proxy b) =$=
-            CL.mapM (either (monadThrow . Ex) return)
-
-getSomeAnalysisDb userAnalysis = SomeAnalysis
-    form
-    (Left ((\countRef params ->
-              (selectSource [] []) =$=
-              CL.iterM (const (liftIO (modifyIORef' countRef (+1)))) =$=
-              CL.map entityVal =$=
-              userAnalysis params)))
-    def
-    True
-  where modifyIORef' :: IORef a -> (a -> a) -> IO ()
-        modifyIORef' ref f = do
-          x <- readIORef ref
-          let x' = f x
-          x' `seq` writeIORef ref x'
-
-getSomeAnalysisRaw
-  :: HasForm params =>
-     (params -> ConduitM ByteString DataPoint (ReaderT (FilterLog -> IO ()) (HandlerT App IO)) ())
-     -> SomeAnalysis
-getSomeAnalysisRaw userAnalysis = SomeAnalysis
-    form
-    (Right (\countRef params ->
-              CL.iterM (const (liftIO (modifyIORef' countRef (+1)))) =$=
-              userAnalysis params))
-    def
-    False
-  where modifyIORef' :: IORef a -> (a -> a) -> IO ()
-        modifyIORef' ref f = do
-          x <- readIORef ref
-          let x' = f x
-          x' `seq` writeIORef ref x'
 
 data Ex = Ex Text
   deriving (Data,Show,Typeable,Eq)

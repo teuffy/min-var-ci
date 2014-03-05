@@ -22,14 +22,14 @@ postImportR = do
   ((result, _), _) <- runFormPost uploadForm
   case result of
     FormSuccess fi -> do
-      i <- addSource fi
-      redirect (ReviewR i)
+      addSource fi
+      redirect ReviewR
     _ -> do ((result', _), _) <- runFormPost urlForm
             case result' of
               FormSuccess url -> do
                 mi <- addUrlSource url
                 case mi of
-                  Just i -> redirect (ReviewR i)
+                  Just i -> redirect ReviewR
                   Nothing -> getImport (Just "Unable to download from URL.")
               _ -> redirect ImportR
 

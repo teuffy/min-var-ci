@@ -16,20 +16,19 @@ import Data.Conduit
 
 import Data.IORef
 import Data.Text (Text)
-import DataAnalysis.Application.Foundation
+-- import DataAnalysis.Application.Foundation
 import Yesod
 -- --
 import DataAnalysis.Application.Types
 
 -- | Analyze the imported data with the submitted parameters (if any),
 -- and return the data points from it.
-analysisSource :: Text
-               -> IORef Int
+analysisSource :: IORef Int
                -> IORef ([a] -> c)
-               -> HandlerT App IO (ConduitM () DataPoint (YesodDB App) ())
-analysisSource ident countRef logRef = do
+               -> HandlerT App IO (ConduitM () DataPoint (YesodDB App) (),[Text])
+analysisSource countRef logRef = do
     app <- getYesod
-    (source,_) <- getById ident Nothing
+    {-(source,_) <- getById ident Nothing-}
     SomeAnalysis{..} <- return (appAnalysis app)
     ((result, _), _) <- runFormGet (makeParamsForm analysisForm)
     let params =
@@ -39,7 +38,9 @@ analysisSource ident countRef logRef = do
         logger fl = modifyIORef logRef (. (fl:))
     return (case analysisConduit of
               Left dbconduit ->
-                dbconduit countRef params)
+                (dbconduit countRef params,(case result of
+                                              FormFailure xs -> xs
+                                              _ -> [])))
 
 runReaderC :: Monad m => env -> Conduit i (ReaderT env m) o -> Conduit i m o
 runReaderC env = transPipe (`runReaderT` env)

@@ -1,6 +1,6 @@
 <h1>#{title}
 
-<form method=get action=@{ReviewR ident} enctype=#{enctype} #parameters-form data-file=#{srcName source}>
+<form method=get action=@{ReviewR} enctype=#{enctype} #parameters-form>
   <div .row>
     <div .span6>
       <div .well>
