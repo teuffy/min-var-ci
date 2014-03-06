@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 -- NOTE: This is included for testing of the repo. Generated code should not
 -- include this module.
 

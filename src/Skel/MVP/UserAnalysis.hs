@@ -9,6 +9,7 @@ import qualified Data.Conduit.List as CL
 import           Data.IORef.Lifted
 import qualified Data.Packed.Vector as V
 import           Data.Text (pack)
+import DataAnalysis.Application.Foundation
 import           Numeric.LinearAlgebra
 import           Skel.MVP.UserParameters hiding (Vector,(<.>))
 
@@ -36,7 +37,7 @@ userAnalysis params =
 
 mvpAnalysis :: MvpParams -> Conduit DatePrices (YesodDB App) DataPoint
 mvpAnalysis _ =
-  do rows <- CL.consume
+  do rows <- (CL.consume :: ConduitM DatePrices DataPoint (YesodDB App) [DatePrices])
      case rows of
        [] -> return ()
        rows ->

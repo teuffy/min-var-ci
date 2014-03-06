@@ -4,10 +4,14 @@ module-template: ! 'module MODULE_NAME where
 extensions: {}
 environment: ghc-7.4.2-unstable
 cabal-file: project.cabal
-hidden-packages: monads-tf
+hidden-packages: ''
 version: 1
 extra-packages: ''
 ghc-args: []
 excluded-modules:
 - Setup.hs
+- src/Skel/Custom/Main.hs
+- src/Skel/Kmer/Main.hs
+- src/Skel/Pharma/Main.hs
+- src/Skel/RSI/Main.hs
 - src/main/Main.hs

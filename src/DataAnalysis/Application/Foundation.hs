@@ -50,7 +50,7 @@ import Control.Exception.Lifted hiding (Handler)
 mkYesodData "App" $(parseRoutesFile "config/routes")
 
 instance YesodPersist App where
-  type YesodPersistBackend App = Connection
+  type YesodPersistBackend App = SqlPersistT
   runDB action = do
     App{appPool} <- getYesod
     runSqlPool action appPool

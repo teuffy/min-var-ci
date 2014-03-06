@@ -36,7 +36,7 @@ import           Yesod.Static
 runAnalysisAppDb
   ::
      Text
-     -> SqlPersistT IO a
+     -> SqlPersistM a
      -> (MvpParams
          -> Conduit Security (YesodDB App) DataPoint)
      -> IO ()
@@ -82,12 +82,11 @@ runAnalysisAppDb title migrate analysis = do
                   Security name day close
 
 -- | Make a pool and migrate it.
-makePool :: SqlPersistT IO a -> IO ConnectionPool
+makePool :: SqlPersistM a -> IO ConnectionPool
 makePool migrate =
   do (fp,h) <- openTempFile "/tmp/" "finance.db"
      hClose h
      pool <- runNoLoggingT (createSqlitePool (T.pack fp) 1)
      day <- fmap utctDay getCurrentTime
-     runSqlPool migrate
-                pool
+     runSqlPersistMPool migrate pool
      return pool
